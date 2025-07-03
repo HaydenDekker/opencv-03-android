@@ -33,6 +33,15 @@ android {
 
 dependencies {
 
+    val cameraxVersion = "1.3.1" // Or the latest stable version (check https://developer.android.com/jetpack/androidx/releases/camera-x)
+
+    implementation("androidx.camera:camera-core:${cameraxVersion}")
+    implementation("androidx.camera:camera-camera2:${cameraxVersion}") // <<< THIS IS LIKELY MISSING
+    implementation("androidx.camera:camera-lifecycle:${cameraxVersion}")
+    implementation("androidx.camera:camera-video:${cameraxVersion}") // If you use video capture
+    implementation("androidx.camera:camera-view:${cameraxVersion}")
+    implementation("androidx.camera:camera-extensions:${cameraxVersion}") // For extensions like Bokeh, HDR, etc. (optional)
+
     implementation(libs.opencv)
     implementation(libs.reactor.core)
     implementation(libs.appcompat)
@@ -40,6 +49,8 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     implementation(libs.camera.core)
+    implementation(libs.camera.view)
+    implementation(libs.camera.lifecycle)
     testImplementation(libs.junit)
     androidTestImplementation(libs.core.ktx) // Or "androidx.test:core-ktx:1.5.0"
     androidTestImplementation(libs.ext.junit)
