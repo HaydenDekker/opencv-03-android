@@ -4,6 +4,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import android.Manifest;
 import android.content.Context;
 import android.util.Log;
 
@@ -12,12 +13,14 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.rule.GrantPermissionRule;
 
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.RuleChain;
 import org.junit.runner.RunWith;
 
 import java.util.concurrent.CountDownLatch;
@@ -35,9 +38,15 @@ public class MainActivityImageAnalysisTest {
     // Timeout for waiting for an image from ImageAnalysis (in milliseconds)
     private static final long IMAGE_WAIT_TIMEOUT_MS = 10000; // 10 seconds
 
-    @Rule
     public ActivityScenarioRule<MainActivity> activityRule =
             new ActivityScenarioRule<>(MainActivity.class);
+
+    public GrantPermissionRule permissionRule =
+            GrantPermissionRule.grant(Manifest.permission.CAMERA);
+    @Rule
+    public RuleChain ruleChain = RuleChain
+            .outerRule(permissionRule)
+            .around(activityRule);
 
     private ActivityScenario<MainActivity> scenario;
     private MainActivity activity;
