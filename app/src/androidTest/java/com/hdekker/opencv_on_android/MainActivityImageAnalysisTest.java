@@ -82,7 +82,7 @@ public class MainActivityImageAnalysisTest {
                 // Ensure your MainActivity instance is accessible here.
                 // If 'activity' from setUp is not consistently set due to timing,
                 // re-fetch or pass it.
-                currentActivityImage[0] = act.latestImage;
+                currentActivityImage[0] = act.imageAnalyzer.latestImage;
             });
 
             if (currentActivityImage[0] != null) {
