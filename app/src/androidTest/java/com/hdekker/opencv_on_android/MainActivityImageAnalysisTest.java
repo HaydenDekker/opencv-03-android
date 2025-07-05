@@ -1,6 +1,9 @@
 package com.hdekker.opencv_on_android;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import android.Manifest;
@@ -11,6 +14,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.GrantPermissionRule;
 
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -106,6 +110,13 @@ public class MainActivityImageAnalysisTest {
         }
 
         assertNotNull("MainActivity.latestImage should have been populated.", receivedImage.get());
+
+        Mat mat = receivedImage.get();
+        // Using AssertJ for more descriptive assertions
+        assertFalse("Mat should not be empty", mat.empty());
+        assertThat(mat.width(), Matchers.greaterThan(0));
+        assertThat(mat.height(), Matchers.greaterThan(0));
+        assertThat(mat.channels(), Matchers.greaterThan(0));
 
         Mat finalImage = receivedImage.get();
         if (finalImage != null) {
