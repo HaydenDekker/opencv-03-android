@@ -7,58 +7,63 @@ import androidx.annotation.NonNull;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
 
+import org.opencv.core.Mat;
+
 public class ImageAnalyzer implements ImageAnalysis.Analyzer {
 
     private static final String TAG = "ImageAnalyzer";
 
-    public ImageProxy latestImage = null;
+    public Mat latestMatImage = null;
 
     @SuppressLint("UnsafeOptInUsageError") // For ImageProxy.getImage()
     @Override
     public void analyze(@NonNull ImageProxy imageProxy) {
-        // Optional: Throttle analysis to reduce processing load
-        // long currentTimestamp = System.currentTimeMillis();
-        // if (currentTimestamp - lastAnalyzedTimestamp < TimeUnit.SECONDS.toMillis(1)) { // Analyze approx once per second
-        //     imageProxy.close(); // IMPORTANT: Always close the ImageProxy
-        //     return;
-        // }
-        // lastAnalyzedTimestamp = currentTimestamp;
-
-        if (latestImage != null) {
-            latestImage.close();
-        }
-        latestImage = imageProxy;
 
         Log.d(TAG, "ImageAnalysis: New frame received. Format: " + imageProxy.getFormat() +
                 ", Size: " + imageProxy.getWidth() + "x" + imageProxy.getHeight() +
                 ", Timestamp: " + imageProxy.getImageInfo().getTimestamp());
 
-        // --- Your Image Processing Logic ---
-        // Example: Convert to Bitmap (make sure to handle different image formats)
-        // Image image = imageProxy.getImage();
-        // if (image != null) {
-        //     // Convert YUV_420_888 to Bitmap (common format)
-        //     // This requires a conversion function.
-        //     // Bitmap bitmap = yuvToRgbConverter.toBitmap(image);
-        //     // Do something with the bitmap
-        // }
+        Mat bgrMat = null;
+        Mat grayMat = null;
+        try (imageProxy) {
+            bgrMat = ImageConversionUtils.imageProxyToMat(imageProxy);
 
-    }
+            if (!bgrMat.empty()) {
+                Log.d(TAG, "Successfully converted ImageProxy to BGR Mat: " + bgrMat.size().toString());
 
-    // Method to update latestImage, called from your Analyzer
-    // This is one way; the analyzer could also hold a direct reference to this.latestImage
-    public void setLatestImage(ImageProxy imageProxy) {
-        if (this.latestImage != null) {
-            this.latestImage.close(); // Close the previous one
+                // --- Your processing with bgrMat ---
+
+                // Convert to Grayscale
+                grayMat = ImageConversionUtils.toGrayscale(bgrMat);
+                if (!grayMat.empty()) {
+                    Log.d(TAG, "Successfully converted to Grayscale Mat: " + grayMat.size().toString());
+                    // --- Your processing with grayMat ---
+
+                    // This is where you'd update your `latestMatImage` for the test
+                    // e.g., this.latestMatImage = grayMat.clone(); // Clone if grayMat will be released
+                    // or if bgrMat is released and grayMat
+                    // might be a view in some cases.
+                    // Safest to clone for storage.
+                    if (this.latestMatImage != null) {
+                        this.latestMatImage.release();
+                    }
+                    this.latestMatImage = grayMat.clone(); // Store the grayscale mat
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error during ImageProxy to Mat conversion or grayscale: ", e);
+        } finally {
+            // Release Mats that are locally created if not returned or stored elsewhere
+            if (bgrMat != null) {
+                bgrMat.release();
+            }
+
         }
-        this.latestImage = imageProxy;
     }
+
 
     public void releaseLatestImage() {
-        if (latestImage != null) {
-            latestImage.close();
-            latestImage = null;
-        }
+
     }
 
 }

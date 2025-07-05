@@ -1,27 +1,23 @@
 package com.hdekker.opencv_on_android;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import android.Manifest;
-import android.content.Context;
 import android.util.Log;
 
-import androidx.camera.core.ImageProxy;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
-import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.GrantPermissionRule;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.runner.RunWith;
+import org.opencv.core.Mat;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -71,7 +67,7 @@ public class MainActivityImageAnalysisTest {
     @Test
     public void latestImage_shouldBePopulated_byImageAnalysis() throws InterruptedException {
         final CountDownLatch imageReceivedLatch = new CountDownLatch(1);
-        AtomicReference<ImageProxy> receivedImage = new AtomicReference<>(null);
+        AtomicReference<Mat> receivedImage = new AtomicReference<>(null);
 
         // We need to access the activity instance to check its property.
         // The best way to wait for an asynchronous operation like ImageAnalysis
@@ -85,22 +81,13 @@ public class MainActivityImageAnalysisTest {
         boolean imageFound = false;
 
         while (System.currentTimeMillis() - startTime < IMAGE_WAIT_TIMEOUT_MS) {
-            final ImageProxy[] currentActivityImage = new ImageProxy[1];
+            final Mat[] currentActivityImage = new Mat[1];
             scenario.onActivity(act -> {
-                // Access the latestImage property from the activity instance
-                // Ensure your MainActivity instance is accessible here.
-                // If 'activity' from setUp is not consistently set due to timing,
-                // re-fetch or pass it.
-                currentActivityImage[0] = act.imageAnalyzer.latestImage;
+                currentActivityImage[0] = act.imageAnalyzer.latestMatImage;
             });
 
             if (currentActivityImage[0] != null) {
-                Log.d(TAG, "latestImage is not null. Format: " + currentActivityImage[0].getFormat());
-                // Optionally, you can add more assertions about the image here,
-                // e.g., image.getWidth(), image.getHeight(), image.getFormat()
-                // Make sure to close the ImageProxy if you are done with it to free resources,
-                // though in a test just checking for non-null might be enough if the SUT handles closing.
-                // For this test, we assume the MainActivity's analyzer handles closing.
+                Log.d(TAG, String.format("latestImage is not null. Type: " + currentActivityImage[0].type()));
                 receivedImage.set(currentActivityImage[0]);
                 imageReceivedLatch.countDown(); // Signal that an image was found
                 imageFound = true;
@@ -120,20 +107,8 @@ public class MainActivityImageAnalysisTest {
 
         assertNotNull("MainActivity.latestImage should have been populated.", receivedImage.get());
 
-        // Important: If your ImageAnalysis use case keeps a reference to the last ImageProxy,
-        // and your test also gets a reference, ensure it's handled correctly to avoid
-        // "max images exceeded" errors if the analyzer doesn't close them fast enough
-        // or if the test holds onto it for too long.
-        // For this test, we're just checking if it was populated. The actual ImageProxy
-        // lifecycle is managed by your MainActivity's analyzer.
-        ImageProxy finalImage = receivedImage.get();
+        Mat finalImage = receivedImage.get();
         if (finalImage != null) {
-            // In a real scenario, the Analyzer is responsible for closing the ImageProxy.
-            // If the test is taking a reference that the analyzer might not know about,
-            // or if the test needs to inspect it and the analyzer would close it,
-            // coordination is needed. Here, we just check non-null.
-            // If the `latestImage` field in MainActivity is replaced by newer frames,
-            // then the old one should have been closed by the Analyzer.
             Log.d(TAG, "Successfully asserted latestImage is not null.");
         }
     }
