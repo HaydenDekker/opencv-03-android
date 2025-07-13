@@ -9,11 +9,24 @@ import androidx.camera.core.ImageProxy;
 
 import org.opencv.core.Mat;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class ImageAnalyzer implements ImageAnalysis.Analyzer {
 
     private static final String TAG = "ImageAnalyzer";
 
     public Mat latestMatImage = null;
+    public AtomicInteger processedFrameCount = new AtomicInteger(0);
+
+    /**
+     *  The rate of images provided to the algorithm.
+     */
+    WindowedFPSCalculator inputFPS = new WindowedFPSCalculator(1000.0f);
+
+    /**
+     *  The rate of images processed by the algorithm.
+     */
+    WindowedFPSCalculator outputFPS = new WindowedFPSCalculator(1000.0f);
 
     @SuppressLint("UnsafeOptInUsageError") // For ImageProxy.getImage()
     @Override
@@ -23,44 +36,27 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
                 ", Size: " + imageProxy.getWidth() + "x" + imageProxy.getHeight() +
                 ", Timestamp: " + imageProxy.getImageInfo().getTimestamp());
 
+        long startTime = System.currentTimeMillis();
+        inputFPS.recordFrameTimestamp(System.nanoTime());
+
         Mat bgrMat = null;
-        Mat grayMat = null;
         try (imageProxy) {
             bgrMat = ImageConversionUtils.imageProxyToMat(imageProxy);
-
-            if (!bgrMat.empty()) {
-                Log.d(TAG, "Successfully converted ImageProxy to BGR Mat: " + bgrMat.size().toString());
-
-                // --- Your processing with bgrMat ---
-
-                // Convert to Grayscale
-                grayMat = ImageConversionUtils.toGrayscale(bgrMat);
-                if (!grayMat.empty()) {
-                    Log.d(TAG, "Successfully converted to Grayscale Mat: " + grayMat.size().toString());
-                    // --- Your processing with grayMat ---
-
-                    // This is where you'd update your `latestMatImage` for the test
-                    // e.g., this.latestMatImage = grayMat.clone(); // Clone if grayMat will be released
-                    // or if bgrMat is released and grayMat
-                    // might be a view in some cases.
-                    // Safest to clone for storage.
-                    if (this.latestMatImage != null) {
-                        this.latestMatImage.release();
-                    }
-                    this.latestMatImage = grayMat.clone(); // Store the grayscale mat
-                }
+            if (this.latestMatImage != null) {
+                  this.latestMatImage.release();
             }
+            this.latestMatImage = bgrMat;
+
+            processedFrameCount.incrementAndGet();
+            outputFPS.recordFrameTimestamp(System.nanoTime());
+
         } catch (Exception e) {
             Log.e(TAG, "Error during ImageProxy to Mat conversion or grayscale: ", e);
-        } finally {
-            // Release Mats that are locally created if not returned or stored elsewhere
-            if (bgrMat != null) {
-                bgrMat.release();
-            }
-
         }
-    }
 
+        long millis = System.currentTimeMillis() - startTime;
+        Log.i(TAG, "Conversion took " + millis + " millis.");
+    }
 
     public void releaseLatestImage() {
 

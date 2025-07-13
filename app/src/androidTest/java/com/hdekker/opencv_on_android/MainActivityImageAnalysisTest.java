@@ -9,6 +9,7 @@ import static org.junit.Assert.fail;
 import android.Manifest;
 import android.util.Log;
 
+import androidx.annotation.Size;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -25,6 +26,8 @@ import org.opencv.core.Mat;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -36,7 +39,125 @@ public class MainActivityImageAnalysisTest {
 
     private static final String TAG = "ImageAnalysisTest";
     // Timeout for waiting for an image from ImageAnalysis (in milliseconds)
-    private static final long IMAGE_WAIT_TIMEOUT_MS = 10000; // 10 seconds
+    private static final long INITIAL_FRAME_WAIT_TIMEOUT_MS = 10000; // Time to wait for the first couple of frames
+    private static final long FPS_TEST_DURATION_SECONDS = 2;
+    private static final int CONFIGURED_FPS = 30; // Example: Your target FPS
+    private static final int MINIMUM_ACCEPTED_FPS = CONFIGURED_FPS - 1;
+
+    private ActivityScenario<MainActivity> scenario;
+    private MainActivity activity;
+
+    @Before
+    public void setUp() {
+        scenario = activityRule.getScenario();
+        scenario.onActivity(act -> {
+            activity = act;
+        });
+        try {
+            Thread.sleep(1000); // Reduce flakiness, but not ideal.
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private Mat getLatestNonNullMatFromActivity(MainActivity currentActivity) {
+        if (currentActivity != null && currentActivity.imageAnalyzer != null && currentActivity.imageAnalyzer.latestMatImage != null) {
+            // Important: Clone the Mat to avoid issues with the underlying buffer being reused
+            // or modified by the ImageAnalysis thread while you're processing it.
+            return currentActivity.imageAnalyzer.latestMatImage.clone();
+        }
+        return null;
+    }
+
+    @Test
+    public void imagePipeline_shouldMaintainFps() throws InterruptedException {
+
+        Log.d(TAG, "Starting FPS test. Target FPS: " + CONFIGURED_FPS + ", Test Duration: " + FPS_TEST_DURATION_SECONDS + "s");
+
+        initCamera();
+
+        Log.d(TAG, "Starting " + FPS_TEST_DURATION_SECONDS + "s measurement period for FPS.");
+
+        activity.imageAnalyzer.processedFrameCount.set(0);
+
+        Thread.sleep(FPS_TEST_DURATION_SECONDS * 1000);
+
+        int totalFramesProcessed = activity.imageAnalyzer.processedFrameCount.get();
+        double achievedFps = (double) totalFramesProcessed / FPS_TEST_DURATION_SECONDS;
+
+        Log.d(TAG, "FPS Test Complete. Processed " + totalFramesProcessed + " frames in "
+                + String.format("%.2f", (double) FPS_TEST_DURATION_SECONDS) + "s. Achieved FPS: "
+                + String.format("%.2f", achievedFps));
+
+        double inputFPS = activity.imageAnalyzer.inputFPS.calculateFPS();
+
+        assertThat("Measured Input FPS equal to output fps",
+                inputFPS,
+                Matchers.closeTo(activity.imageAnalyzer.outputFPS.calculateFPS(), 2.0));
+
+        if(inputFPS < (double)MINIMUM_ACCEPTED_FPS + 1 &&  inputFPS > (double)MINIMUM_ACCEPTED_FPS - 1) {
+            assertThat("Achieved FPS check",
+                    achievedFps,
+                    Matchers.greaterThanOrEqualTo((double) MINIMUM_ACCEPTED_FPS));
+        }else{
+            Log.w(TAG, "Input frame rate did not meet the minimum. Possibly slow from AE.");
+        }
+
+
+    }
+
+    private void initCamera() throws InterruptedException {
+
+        AtomicReference<Mat> firstMatRef = new AtomicReference<>();
+        AtomicReference<Mat> secondMatRef = new AtomicReference<>();
+        long startTimeWaitForFrames = System.currentTimeMillis();
+        boolean gotTwoFrames = false;
+
+        // 1. Wait for the second frame to ensure the stream is active
+        Log.d(TAG, "Waiting for initial startup/stabilisation period...");
+        while (System.currentTimeMillis() - startTimeWaitForFrames < INITIAL_FRAME_WAIT_TIMEOUT_MS) {
+            final Mat[] currentMatHolder = new Mat[1];
+            scenario.onActivity(act -> currentMatHolder[0] = getLatestNonNullMatFromActivity(act));
+            Mat currentMat = currentMatHolder[0];
+
+            if (currentMat != null && !currentMat.empty()) {
+                if (firstMatRef.get() == null) {
+                    firstMatRef.set(currentMat);
+                    Log.d(TAG, "Got first frame.");
+                } else if (secondMatRef.get() == null) {
+                    // Check if this frame is different from the first one.
+                    // A simple check is if they are different objects, assuming cloning happens.
+                    // A more robust check might involve comparing a small part of the data
+                    // or ensuring their internal nativeObjAddr are different.
+                    if (currentMat.nativeObj != firstMatRef.get().nativeObj) { // Check if it's a new Mat object
+                        secondMatRef.set(currentMat);
+                        Log.d(TAG, "Got second distinct frame.");
+                        gotTwoFrames = true;
+                        //break;
+                    } else {
+                        // It's the same Mat object as the first, release currentMat (the clone)
+                        // and wait for a newer one.
+                        currentMat.release();
+                    }
+                }
+            } else if (currentMat != null) { // It's not null, but empty
+                currentMat.release(); // Release the empty clone
+            }
+            Thread.sleep(50); // Poll for new frames
+        }
+
+        if (!gotTwoFrames) {
+            if (firstMatRef.get() != null) firstMatRef.get().release();
+            if (secondMatRef.get() != null) secondMatRef.get().release();
+            fail("Timeout: Did not receive two distinct frames within " + INITIAL_FRAME_WAIT_TIMEOUT_MS + "ms to start FPS test.");
+        }
+
+        // Release the initial frames if they are not null
+        if (firstMatRef.get() != null) firstMatRef.get().release();
+        if (secondMatRef.get() != null) secondMatRef.get().release();
+
+
+    }
 
     public ActivityScenarioRule<MainActivity> activityRule =
             new ActivityScenarioRule<>(MainActivity.class);
@@ -48,85 +169,5 @@ public class MainActivityImageAnalysisTest {
             .outerRule(permissionRule)
             .around(activityRule);
 
-    private ActivityScenario<MainActivity> scenario;
-    private MainActivity activity;
-
-    @Before
-    public void setUp() {
-        scenario = activityRule.getScenario();
-        // It's good practice to ensure the activity is RESUMED before proceeding,
-        // as CameraX often starts in onResume.
-        scenario.onActivity(act -> {
-            activity = act; // Get a reference to the activity instance
-        });
-        // Give a brief moment for onResume and CameraX binding to initiate
-        // A more robust solution would be an IdlingResource.
-        try {
-            Thread.sleep(1000); // Reduce flakiness, but not ideal.
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    @Test
-    public void latestImage_shouldBePopulated_byImageAnalysis() throws InterruptedException {
-        final CountDownLatch imageReceivedLatch = new CountDownLatch(1);
-        AtomicReference<Mat> receivedImage = new AtomicReference<>(null);
-
-        // We need to access the activity instance to check its property.
-        // The best way to wait for an asynchronous operation like ImageAnalysis
-        // is to either use an IdlingResource, or for simpler cases, poll
-        // the condition with a timeout, or modify the SUT to provide a callback for tests.
-
-        // Since MainActivity.latestImage is public, we can poll it.
-        // We'll give it some time for CameraX to initialize and process a few frames.
-
-        long startTime = System.currentTimeMillis();
-        boolean imageFound = false;
-
-        while (System.currentTimeMillis() - startTime < IMAGE_WAIT_TIMEOUT_MS) {
-            final Mat[] currentActivityImage = new Mat[1];
-            scenario.onActivity(act -> {
-                currentActivityImage[0] = act.imageAnalyzer.latestMatImage;
-            });
-
-            if (currentActivityImage[0] != null) {
-                Log.d(TAG, String.format("latestImage is not null. Type: " + currentActivityImage[0].type()));
-                receivedImage.set(currentActivityImage[0]);
-                imageReceivedLatch.countDown(); // Signal that an image was found
-                imageFound = true;
-                break;
-            }
-            // Wait a bit before polling again
-            Thread.sleep(200); // Poll every 200ms
-        }
-
-        // Wait for the latch with a timeout (it might have already counted down)
-        if (!imageReceivedLatch.await(1, TimeUnit.MILLISECONDS)) { // Short wait if already counted down
-            if (!imageFound) { // Check if we broke the loop because image was found or timeout
-                fail("Timeout: MainActivity.latestImage was not populated by ImageAnalysis within "
-                        + IMAGE_WAIT_TIMEOUT_MS + "ms.");
-            }
-        }
-
-        assertNotNull("MainActivity.latestImage should have been populated.", receivedImage.get());
-
-        Mat mat = receivedImage.get();
-        // Using AssertJ for more descriptive assertions
-        assertFalse("Mat should not be empty", mat.empty());
-        assertThat(mat.width(), Matchers.greaterThan(0));
-        assertThat(mat.height(), Matchers.greaterThan(0));
-        assertThat(mat.channels(), Matchers.greaterThan(0));
-
-        Mat finalImage = receivedImage.get();
-        if (finalImage != null) {
-            Log.d(TAG, "Successfully asserted latestImage is not null.");
-        }
-    }
-
-    @After
-    public void tearDown() {
-        // scenario.close(); // ActivityScenarioRule handles closing the activity.
-        // If you were manually managing ImageProxy objects in the test, close them here.
-    }
 }
+

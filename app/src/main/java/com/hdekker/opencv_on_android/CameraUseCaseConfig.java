@@ -1,10 +1,19 @@
 package com.hdekker.opencv_on_android;
 
 import android.content.Context;
+import android.graphics.ImageFormat;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.params.StreamConfigurationMap;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
+import androidx.annotation.Size;
+import androidx.camera.camera2.interop.Camera2CameraInfo;
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop;
 import androidx.camera.core.Camera;
+import androidx.camera.core.CameraInfo;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageProxy;
@@ -16,6 +25,8 @@ import androidx.lifecycle.LifecycleOwner;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,9 +42,12 @@ public class CameraUseCaseConfig {
     private ExecutorService cameraExecutor;
 
     public CameraUseCaseConfig(Context context){
-        //previewView = findViewById(R.id.previewView); // Replace with your PreviewView ID
+
         cameraExecutor = Executors.newSingleThreadExecutor();
         cameraProviderFuture = ProcessCameraProvider.getInstance(context);
+
+        CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+        CameraLogger.logAllCameraCapabilities(cameraManager);
 
     }
 
@@ -66,6 +80,7 @@ public class CameraUseCaseConfig {
         ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
                 // Set the resolution for analysis (optional, but recommended)
                 // Set the backpressure strategy. STRATEGY_KEEP_ONLY_LATEST is common.
+                .setTargetResolution(new android.util.Size(720, 1280))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER)
                 .build();
 
@@ -107,3 +122,4 @@ public class CameraUseCaseConfig {
     }
 
 }
+
