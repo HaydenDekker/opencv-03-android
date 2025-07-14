@@ -51,34 +51,36 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        cameraUseCaseConfig = new CameraUseCaseConfig(this);
-        imageAnalyzer = new ImageAnalyzer();
-
-        if (allPermissionsGranted()) {
-            cameraUseCaseConfig.startCamera(this, this, previewView.getSurfaceProvider(), imageAnalyzer);
-        } else {
+        if (permissionsNotGranted()) {
             ActivityCompat.requestPermissions(
                     this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
         }
     }
 
-    private boolean allPermissionsGranted() {
+    public void setImageAnalyzer(ImageAnalyzer imageAnalyzer){
+        this.imageAnalyzer = imageAnalyzer;
+        if (cameraUseCaseConfig != null) {
+            cameraUseCaseConfig.releaseCamera();
+        }
+        cameraUseCaseConfig = new CameraUseCaseConfig(this);
+        cameraUseCaseConfig.startCamera(this, this, previewView.getSurfaceProvider(), imageAnalyzer);
+    }
+
+    private boolean permissionsNotGranted() {
         for (String permission : REQUIRED_PERMISSIONS) {
             if (ContextCompat.checkSelfPermission(
                     this, permission) != PackageManager.PERMISSION_GRANTED) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                cameraUseCaseConfig.startCamera(this, this, previewView.getSurfaceProvider(), imageAnalyzer);
-            } else {
+            if (permissionsNotGranted()) {
                 Toast.makeText(this,
                         "Permissions not granted by the user.",
                         Toast.LENGTH_SHORT).show();
@@ -94,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
         if (cameraUseCaseConfig != null) {
             cameraUseCaseConfig.releaseCamera();
         }
-        imageAnalyzer.releaseLatestImage();
 
     }
 

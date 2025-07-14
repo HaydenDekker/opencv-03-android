@@ -24,11 +24,15 @@ import org.junit.rules.RuleChain;
 import org.junit.runner.RunWith;
 import org.opencv.core.Mat;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import reactor.core.publisher.Mono;
 
 /**
  * Instrumented test to verify that MainActivity.latestImage is populated
@@ -69,31 +73,50 @@ public class MainActivityImageAnalysisTest {
         return null;
     }
 
+    // slowAlgo
+    SlowAlgo algo = new SlowAlgo();
+    ImageAnalyzer ia = new ImageAnalyzer(algo);
+    // fastAlgo
+    /**
+     *  The rate of images processed by the algorithm.
+     */
+    WindowedFPSCalculator outputFPS = new WindowedFPSCalculator(1000.0f);
+
     @Test
-    public void imagePipeline_shouldMaintainFps() throws InterruptedException {
+    public void imagePipeline_shouldCaptureFpsAndLatency() throws InterruptedException {
 
         Log.d(TAG, "Starting FPS test. Target FPS: " + CONFIGURED_FPS + ", Test Duration: " + FPS_TEST_DURATION_SECONDS + "s");
+        scenario.onActivity(act -> {
+            act.setImageAnalyzer(ia);
+        });
 
-        initCamera();
+        algo.getOutputFlux()
+                .timeout(Duration.ofSeconds(20))
+                .take(2)
+                .blockLast();
 
         Log.d(TAG, "Starting " + FPS_TEST_DURATION_SECONDS + "s measurement period for FPS.");
 
-        activity.imageAnalyzer.processedFrameCount.set(0);
-
-        Thread.sleep(FPS_TEST_DURATION_SECONDS * 1000);
-
-        int totalFramesProcessed = activity.imageAnalyzer.processedFrameCount.get();
-        double achievedFps = (double) totalFramesProcessed / FPS_TEST_DURATION_SECONDS;
-
-        Log.d(TAG, "FPS Test Complete. Processed " + totalFramesProcessed + " frames in "
-                + String.format("%.2f", (double) FPS_TEST_DURATION_SECONDS) + "s. Achieved FPS: "
-                + String.format("%.2f", achievedFps));
+        List<Mat> results = algo.getOutputFlux()
+                .take(Duration.ofSeconds(10))
+                .doOnNext(m -> outputFPS.recordFrameTimestamp(System.nanoTime()))
+                .collectList()
+                .block();
 
         double inputFPS = activity.imageAnalyzer.inputFPS.calculateFPS();
+        double achievedFps = outputFPS.calculateFPS();
+
+        Log.i(TAG, "Input FPS: " + inputFPS + ", Achieved FPS: " + achievedFps);
+
+        assert results != null;
+        assertThat("Results size around 300 frames",
+                (double) results.size(),
+                Matchers.closeTo(300, 100));
+
 
         assertThat("Measured Input FPS equal to output fps",
                 inputFPS,
-                Matchers.closeTo(activity.imageAnalyzer.outputFPS.calculateFPS(), 2.0));
+                Matchers.closeTo(achievedFps, 2.0));
 
         if(inputFPS < (double)MINIMUM_ACCEPTED_FPS + 1 &&  inputFPS > (double)MINIMUM_ACCEPTED_FPS - 1) {
             assertThat("Achieved FPS check",
@@ -102,59 +125,6 @@ public class MainActivityImageAnalysisTest {
         }else{
             Log.w(TAG, "Input frame rate did not meet the minimum. Possibly slow from AE.");
         }
-
-
-    }
-
-    private void initCamera() throws InterruptedException {
-
-        AtomicReference<Mat> firstMatRef = new AtomicReference<>();
-        AtomicReference<Mat> secondMatRef = new AtomicReference<>();
-        long startTimeWaitForFrames = System.currentTimeMillis();
-        boolean gotTwoFrames = false;
-
-        // 1. Wait for the second frame to ensure the stream is active
-        Log.d(TAG, "Waiting for initial startup/stabilisation period...");
-        while (System.currentTimeMillis() - startTimeWaitForFrames < INITIAL_FRAME_WAIT_TIMEOUT_MS) {
-            final Mat[] currentMatHolder = new Mat[1];
-            scenario.onActivity(act -> currentMatHolder[0] = getLatestNonNullMatFromActivity(act));
-            Mat currentMat = currentMatHolder[0];
-
-            if (currentMat != null && !currentMat.empty()) {
-                if (firstMatRef.get() == null) {
-                    firstMatRef.set(currentMat);
-                    Log.d(TAG, "Got first frame.");
-                } else if (secondMatRef.get() == null) {
-                    // Check if this frame is different from the first one.
-                    // A simple check is if they are different objects, assuming cloning happens.
-                    // A more robust check might involve comparing a small part of the data
-                    // or ensuring their internal nativeObjAddr are different.
-                    if (currentMat.nativeObj != firstMatRef.get().nativeObj) { // Check if it's a new Mat object
-                        secondMatRef.set(currentMat);
-                        Log.d(TAG, "Got second distinct frame.");
-                        gotTwoFrames = true;
-                        //break;
-                    } else {
-                        // It's the same Mat object as the first, release currentMat (the clone)
-                        // and wait for a newer one.
-                        currentMat.release();
-                    }
-                }
-            } else if (currentMat != null) { // It's not null, but empty
-                currentMat.release(); // Release the empty clone
-            }
-            Thread.sleep(50); // Poll for new frames
-        }
-
-        if (!gotTwoFrames) {
-            if (firstMatRef.get() != null) firstMatRef.get().release();
-            if (secondMatRef.get() != null) secondMatRef.get().release();
-            fail("Timeout: Did not receive two distinct frames within " + INITIAL_FRAME_WAIT_TIMEOUT_MS + "ms to start FPS test.");
-        }
-
-        // Release the initial frames if they are not null
-        if (firstMatRef.get() != null) firstMatRef.get().release();
-        if (secondMatRef.get() != null) secondMatRef.get().release();
 
 
     }
