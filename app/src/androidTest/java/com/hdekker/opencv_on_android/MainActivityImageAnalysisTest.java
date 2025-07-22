@@ -9,14 +9,14 @@ import static org.junit.Assert.fail;
 import android.Manifest;
 import android.util.Log;
 
-import androidx.annotation.Size;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.GrantPermissionRule;
 
+import com.hdekker.opencv_on_android.reactor.SlowAlgo;
+
 import org.hamcrest.Matchers;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,13 +26,9 @@ import org.opencv.core.Mat;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
-import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 /**
  * Instrumented test to verify that MainActivity.latestImage is populated
@@ -42,8 +38,6 @@ import reactor.core.publisher.Mono;
 public class MainActivityImageAnalysisTest {
 
     private static final String TAG = "ImageAnalysisTest";
-    // Timeout for waiting for an image from ImageAnalysis (in milliseconds)
-    private static final long INITIAL_FRAME_WAIT_TIMEOUT_MS = 10000; // Time to wait for the first couple of frames
     private static final long FPS_TEST_DURATION_SECONDS = 2;
     private static final int CONFIGURED_FPS = 30; // Example: Your target FPS
     private static final int MINIMUM_ACCEPTED_FPS = CONFIGURED_FPS - 1;
@@ -64,68 +58,61 @@ public class MainActivityImageAnalysisTest {
         }
     }
 
-    private Mat getLatestNonNullMatFromActivity(MainActivity currentActivity) {
-        if (currentActivity != null && currentActivity.imageAnalyzer != null && currentActivity.imageAnalyzer.latestMatImage != null) {
-            // Important: Clone the Mat to avoid issues with the underlying buffer being reused
-            // or modified by the ImageAnalysis thread while you're processing it.
-            return currentActivity.imageAnalyzer.latestMatImage.clone();
-        }
-        return null;
-    }
-
     // slowAlgo
-    SlowAlgo algo = new SlowAlgo();
+    SlowAlgo algo = new SlowAlgo(2000);
     ImageAnalyzer ia = new ImageAnalyzer(algo);
-    // fastAlgo
+
     /**
      *  The rate of images processed by the algorithm.
      */
     WindowedFPSCalculator outputFPS = new WindowedFPSCalculator(1000.0f);
 
     @Test
-    public void imagePipeline_shouldCaptureFpsAndLatency() throws InterruptedException {
+    public void slowImagePipeline_ExpectInputFPSFasterThanOutputFPS() throws InterruptedException {
 
         Log.d(TAG, "Starting FPS test. Target FPS: " + CONFIGURED_FPS + ", Test Duration: " + FPS_TEST_DURATION_SECONDS + "s");
+
         scenario.onActivity(act -> {
             act.setImageAnalyzer(ia);
         });
 
+        Log.d(TAG, "Priming image pipeline.");
         algo.getOutputFlux()
                 .timeout(Duration.ofSeconds(20))
                 .take(2)
                 .blockLast();
 
+        Log.d(TAG, "Image count so far is " + algo.imageCount);
         Log.d(TAG, "Starting " + FPS_TEST_DURATION_SECONDS + "s measurement period for FPS.");
 
         List<Mat> results = algo.getOutputFlux()
-                .take(Duration.ofSeconds(10))
-                .doOnNext(m -> outputFPS.recordFrameTimestamp(System.nanoTime()))
+                .doOnNext(m -> {
+                    Log.i(TAG, "Image received.");
+                    outputFPS.recordFrameTimestamp(System.nanoTime());
+                })
+                .take(Duration.ofSeconds(5))
                 .collectList()
+                .subscribeOn(Schedulers.boundedElastic())
                 .block();
+
+        Log.d(TAG, "Image count so far is " + algo.imageCount);
 
         double inputFPS = activity.imageAnalyzer.inputFPS.calculateFPS();
         double achievedFps = outputFPS.calculateFPS();
 
         Log.i(TAG, "Input FPS: " + inputFPS + ", Achieved FPS: " + achievedFps);
 
-        assert results != null;
-        assertThat("Results size around 300 frames",
+        assertThat("Results size have been provided.",
                 (double) results.size(),
-                Matchers.closeTo(300, 100));
+                Matchers.greaterThanOrEqualTo(10.0));
 
-
-        assertThat("Measured Input FPS equal to output fps",
+        assertThat("Measured Input FPS not equal to output fps",
                 inputFPS,
-                Matchers.closeTo(achievedFps, 2.0));
+                Matchers.not(Matchers.equalTo(achievedFps)));
 
-        if(inputFPS < (double)MINIMUM_ACCEPTED_FPS + 1 &&  inputFPS > (double)MINIMUM_ACCEPTED_FPS - 1) {
-            assertThat("Achieved FPS check",
-                    achievedFps,
-                    Matchers.greaterThanOrEqualTo((double) MINIMUM_ACCEPTED_FPS));
-        }else{
-            Log.w(TAG, "Input frame rate did not meet the minimum. Possibly slow from AE.");
-        }
-
+        assertThat("Really want ot see a slow pipeline so, assert measured Input FPS not differs by more than 5 fps",
+                Math.abs(inputFPS - achievedFps),
+                Matchers.greaterThanOrEqualTo(5.0));
 
     }
 
