@@ -5,10 +5,10 @@ import org.opencv.core.Mat;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
-public interface ReactiveImageAlgo {
+public interface ReactiveImageAlgo<T,K> {
 
-    public Sinks.Many<Mat> getInputSink();
+    public Sinks.Many<T> getInputSink();
 
-    public Flux<Mat> getOutputFlux();
+    public Flux<K> getOutputFlux();
 
 }

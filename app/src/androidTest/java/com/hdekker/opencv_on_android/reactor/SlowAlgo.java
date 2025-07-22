@@ -6,21 +6,27 @@ import com.hdekker.opencv_on_android.ReactiveImageAlgo;
 
 import org.opencv.core.Mat;
 
+import java.util.function.Function;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.concurrent.Queues;
 
-public class SlowAlgo implements ReactiveImageAlgo {
+public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
 
     public static final String SLOW_ALGO = "SlowAlgo";
     int algoSleepTimeMs;
-    Sinks.Many<Mat> sink;
+    Sinks.Many<T> sink;
 
     public int imageCount = 0;
 
-    public SlowAlgo(int algoSleepTimeMs){
+    Function<T, K> mappingFunction;
 
+    public SlowAlgo(int algoSleepTimeMs,
+                    Function<T, K> mappingFunction){
+
+        this.mappingFunction = mappingFunction;
         this.algoSleepTimeMs = algoSleepTimeMs;
         sink = Sinks.many()
                .multicast().onBackpressureBuffer(Queues.SMALL_BUFFER_SIZE, false);
@@ -36,15 +42,16 @@ public class SlowAlgo implements ReactiveImageAlgo {
 
     }
     @Override
-    public Sinks.Many<Mat> getInputSink() {
+    public Sinks.Many<T> getInputSink() {
         return sink;
     }
 
     @Override
-    public Flux<Mat> getOutputFlux() {
+    public Flux<K> getOutputFlux() {
         return sink.asFlux()
                 .parallel()
                 .runOn(Schedulers.boundedElastic())
+                .map(mappingFunction)
                 .map(mat-> {
                     long time = System.currentTimeMillis();
                     int cycles = 0;

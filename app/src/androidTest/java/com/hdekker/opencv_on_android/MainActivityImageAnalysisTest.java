@@ -9,6 +9,7 @@ import static org.junit.Assert.fail;
 import android.Manifest;
 import android.util.Log;
 
+import androidx.camera.core.ImageProxy;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -26,6 +27,7 @@ import org.opencv.core.Mat;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.function.Function;
 
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
@@ -58,9 +60,22 @@ public class MainActivityImageAnalysisTest {
         }
     }
 
+    Function<ImageProxy, Mat> openCVConversion = (imageProxy) -> {
+        Mat bgrMat = null;
+        try (imageProxy) {
+            bgrMat = ImageConversionUtils.imageProxyToMat(imageProxy);
+            imageProxy.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error during ImageProxy to Mat conversion: ", e);
+        }
+        return bgrMat;
+    };
+
     // slowAlgo
-    SlowAlgo algo = new SlowAlgo(2000);
+    SlowAlgo<ImageProxy, Mat> algo = new SlowAlgo<>(2000, openCVConversion);
     ImageAnalyzer ia = new ImageAnalyzer(algo);
+
+
 
     /**
      *  The rate of images processed by the algorithm.

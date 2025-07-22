@@ -15,9 +15,9 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
 
     private static final String TAG = "ImageAnalyzer";
 
-    ReactiveImageAlgo algo;
+    ReactiveImageAlgo<ImageProxy, Mat> algo;
 
-    public ImageAnalyzer(ReactiveImageAlgo algo){
+    public ImageAnalyzer(ReactiveImageAlgo<ImageProxy, Mat> algo){
         this.algo = algo;
     }
 
@@ -40,13 +40,7 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
         long startTime = System.currentTimeMillis();
         inputFPS.recordFrameTimestamp(System.nanoTime());
 
-        Mat bgrMat = null;
-        try (imageProxy) {
-            bgrMat = ImageConversionUtils.imageProxyToMat(imageProxy);
-            algo.getInputSink().tryEmitNext(bgrMat);
-        } catch (Exception e) {
-            Log.e(TAG, "Error during ImageProxy to Mat conversion: ", e);
-        }
+        algo.getInputSink().tryEmitNext(imageProxy);
 
         long millis = System.currentTimeMillis() - startTime;
         Log.i(TAG, "Conversion took " + millis + " millis.");
