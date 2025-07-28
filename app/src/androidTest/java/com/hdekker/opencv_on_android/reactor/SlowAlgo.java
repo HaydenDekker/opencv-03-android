@@ -3,6 +3,7 @@ package com.hdekker.opencv_on_android.reactor;
 import android.util.Log;
 
 import com.hdekker.opencv_on_android.ReactiveImageAlgo;
+import com.hdekker.opencv_on_android.WindowedFPSCalculator;
 
 import org.opencv.core.Mat;
 
@@ -23,17 +24,22 @@ public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
 
     Function<T, K> mappingFunction;
 
+    /**
+     *  The rate of images processed by the algorithm.
+     */
+    public WindowedFPSCalculator outputFPS = new WindowedFPSCalculator(1000.0f);
+
     public SlowAlgo(int algoSleepTimeMs,
                     Function<T, K> mappingFunction){
 
         this.mappingFunction = mappingFunction;
         this.algoSleepTimeMs = algoSleepTimeMs;
         sink = Sinks.many()
-               .multicast().onBackpressureBuffer(Queues.SMALL_BUFFER_SIZE, false);
+               .multicast().onBackpressureBuffer(4,false);
         // keep alive
         sink.asFlux()
                 .doFinally(signalType -> Log.i("SlowAlgo", "Stream finished with signal: " + signalType))
-                .doOnNext(m-> Log.i(SLOW_ALGO, "Image received background task."))
+                //.doOnNext(m-> Log.i(SLOW_ALGO, "Image received background task."))
                 .subscribe(m->{
                     imageCount++;
                 }, (err) -> {
@@ -50,12 +56,12 @@ public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
     public Flux<K> getOutputFlux() {
         return sink.asFlux()
                 .parallel()
-                .runOn(Schedulers.boundedElastic())
+                .runOn(Schedulers.newBoundedElastic(4, 4, "ImageProcessor"))
                 .map(mappingFunction)
                 .map(mat-> {
                     long time = System.currentTimeMillis();
                     int cycles = 0;
-                    while(time + 2000 > System.currentTimeMillis()){
+                    while(time + 500 > System.currentTimeMillis()){
                         cycles++;
                     }
                     Log.i(SLOW_ALGO, "Computed, " + cycles);
@@ -63,10 +69,19 @@ public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
                 })
                 .doOnCancel(()-> Log.i(SLOW_ALGO, "task cancelled."))
                 .sequential()
+                .doOnNext(m -> {
+                    outputFPS.recordFrameTimestamp(System.nanoTime());
+
+                })
                 .doFinally(signalType -> {
                     // This will be called when the stream terminates (onComplete, onError, or Cancel)
                     Log.i(SLOW_ALGO, "Stream finished with signal: " + signalType);
                 });
                 //.onErrorResume();
+    }
+
+    @Override
+    public WindowedFPSCalculator getOutputFPS() {
+        return outputFPS;
     }
 }

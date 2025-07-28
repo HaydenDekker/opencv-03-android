@@ -1,5 +1,7 @@
 package com.hdekker.opencv_on_android;
 
+import android.view.Window;
+
 import org.opencv.core.Mat;
 
 import reactor.core.publisher.Flux;
@@ -10,5 +12,7 @@ public interface ReactiveImageAlgo<T,K> {
     public Sinks.Many<T> getInputSink();
 
     public Flux<K> getOutputFlux();
+
+    public WindowedFPSCalculator getOutputFPS();
 
 }
