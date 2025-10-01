@@ -79,8 +79,9 @@ public class CameraUseCaseConfig {
 
         ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
                 // Set the resolution for analysis (optional, but recommended)
-                // Set the backpressure strategy. STRATEGY_KEEP_ONLY_LATEST is common.
-                .setTargetResolution(new android.util.Size(720, 1280))
+                // Set the backpressure strategy. STRATEGY_KEEP_ONLY_LATEST is common
+
+                .setTargetResolution(new android.util.Size(1280, 720))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER)
                 .build();
 

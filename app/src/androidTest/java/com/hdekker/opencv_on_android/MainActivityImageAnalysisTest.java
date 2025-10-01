@@ -1,10 +1,6 @@
 package com.hdekker.opencv_on_android;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import android.Manifest;
 import android.util.Log;
@@ -23,13 +19,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.runner.RunWith;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.function.Function;
 
-import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
 /**
@@ -59,20 +56,8 @@ public class MainActivityImageAnalysisTest {
             Thread.currentThread().interrupt();
         }
     }
-
-    Function<ImageProxy, Mat> openCVConversion = (imageProxy) -> {
-        Mat bgrMat = null;
-        try (imageProxy) {
-            bgrMat = ImageConversionUtils.imageProxyToMat(imageProxy);
-            imageProxy.close();
-        } catch (Exception e) {
-            Log.e(TAG, "Error during ImageProxy to Mat conversion: ", e);
-        }
-        return bgrMat;
-    };
-
     // slowAlgo
-    SlowAlgo<ImageProxy, Mat> algo = new SlowAlgo<>(2000, openCVConversion);
+    SlowAlgo<ImageProxy, Mat> algo = new SlowAlgo<>(2000, MainActivity.openCVConversion);
     ImageAnalyzer ia = new ImageAnalyzer(algo);
 
     @Test
@@ -124,6 +109,32 @@ public class MainActivityImageAnalysisTest {
     public RuleChain ruleChain = RuleChain
             .outerRule(permissionRule)
             .around(activityRule);
+
+    @Test
+    public void runWithProjectileAlgo_ExpectConstantFramesProcessed(){
+
+        Mat initFrame = new Mat(1440, 1440, CvType.CV_8UC4);
+        ReactiveProjectileAlgo rpa = new ReactiveProjectileAlgo(initFrame);
+        ImageAnalyzer ria = new ImageAnalyzer(rpa);
+
+        scenario.onActivity(act -> {
+            act.setImageAnalyzer(ria);
+        });
+
+        List<Mat> list = rpa.getOutputFlux()
+                .take(Duration.ofSeconds(10))
+                .collectList()
+                .block();
+
+        Log.i(TAG, "" + list.size());
+
+        assertThat(
+                "A handful of frame should have been emitted by the algo in the running time.",
+                list.size(),
+                Matchers.greaterThan(20)
+        );
+
+    }
 
 }
 

@@ -9,6 +9,7 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.ImageProxy;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -17,6 +18,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Mat;
+
+import java.util.function.Function;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -98,5 +102,17 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+
+    public static Function<ImageProxy, Mat> openCVConversion = (imageProxy) -> {
+        Mat bgrMat = null;
+        try (imageProxy) {
+            bgrMat = ImageConversionUtils.imageProxyToMat(imageProxy);
+            imageProxy.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error during ImageProxy to Mat conversion: ", e);
+        }
+        return bgrMat;
+    };
+
 
 }

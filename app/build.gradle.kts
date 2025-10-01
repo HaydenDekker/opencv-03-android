@@ -33,14 +33,29 @@ android {
 
 dependencies {
 
+    implementation("com.hdekker:opencv-02-ball-detection:1.0.0-SNAPSHOT"){
+        exclude(group = "org.openpnp", module = "opencv")
+        exclude(group = "org.springframework")
+        exclude(group = "io.netty")
+        exclude(group = "ch.qos.logback")
+        exclude(group = "org.apache.logging.log4j")
+        exclude(group = "org.springframework.boot")
+    }
+    implementation(libs.slf4j.android) // Or the latest version
+    implementation(libs.slf4j.api) // Or the latest version
+    implementation(libs.jackson.databind)// Check for the latest version
+    implementation(libs.opencv.v490)
+    implementation(libs.reactor.core.v360) // Check for the latest version
+
+    implementation(libs.androidx.junit)
     val cameraxVersion = "1.3.1" // Or the latest stable version (check https://developer.android.com/jetpack/androidx/releases/camera-x)
 
-    implementation("androidx.camera:camera-core:${cameraxVersion}")
-    implementation("androidx.camera:camera-camera2:${cameraxVersion}") // <<< THIS IS LIKELY MISSING
-    implementation("androidx.camera:camera-lifecycle:${cameraxVersion}")
-    implementation("androidx.camera:camera-video:${cameraxVersion}") // If you use video capture
-    implementation("androidx.camera:camera-view:${cameraxVersion}")
-    implementation("androidx.camera:camera-extensions:${cameraxVersion}") // For extensions like Bokeh, HDR, etc. (optional)
+    implementation(libs.androidx.camera.core.v131)
+    implementation(libs.androidx.camera.camera2) // <<< THIS IS LIKELY MISSING
+    implementation(libs.androidx.camera.lifecycle.v131)
+    implementation(libs.androidx.camera.video) // If you use video capture
+    implementation(libs.androidx.camera.view.v131)
+    implementation(libs.androidx.camera.extensions) // For extensions like Bokeh, HDR, etc. (optional)
 
     implementation(libs.opencv)
     implementation(libs.reactor.core)

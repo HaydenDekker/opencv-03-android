@@ -49,9 +49,9 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
     @Override
     public void analyze(@NonNull ImageProxy imageProxy) {
 
-//        Log.d(TAG, "ImageAnalysis: New frame received. Format: " + imageProxy.getFormat() +
-//                ", Size: " + imageProxy.getWidth() + "x" + imageProxy.getHeight() +
-//                ", Timestamp: " + imageProxy.getImageInfo().getTimestamp());
+        Log.d(TAG, "ImageAnalysis: New frame received. Format: " + imageProxy.getFormat() +
+                ", Size: " + imageProxy.getWidth() + "x" + imageProxy.getHeight() +
+                ", Timestamp: " + imageProxy.getImageInfo().getTimestamp());
 
         long startTime = System.currentTimeMillis();
         inputFPS.recordFrameTimestamp(System.nanoTime());
