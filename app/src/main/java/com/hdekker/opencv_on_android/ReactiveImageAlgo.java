@@ -12,6 +12,4 @@ public interface ReactiveImageAlgo<T,K> {
 
     public Flux<K> getOutputFlux();
 
-    public void init(T t);
-
 }

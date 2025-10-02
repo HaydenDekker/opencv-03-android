@@ -80,10 +80,6 @@ public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
                 //.onErrorResume();
     }
 
-    @Override
-    public void init(T t) {
-
-    }
 
 
 }

@@ -23,6 +23,8 @@ public class ReactiveProjectileAlgo implements ReactiveImageAlgo<ImageProxy, Mat
 
     ReactiveProjectileAlgo(){
 
+        projectileAlgo = new ProjectileAlgo();
+
         sink = Sinks.many().multicast()
                 .directAllOrNothing();
 
@@ -46,15 +48,6 @@ public class ReactiveProjectileAlgo implements ReactiveImageAlgo<ImageProxy, Mat
     public Flux<Mat> getOutputFlux() {
         return projectileAlgo.resultProducer()
                 .map(ar->ar.result().frame().frame());
-    }
-
-    @Override
-    public void init(ImageProxy imageProxy) {
-
-        Mat initialFrame = MainActivity.openCVConversion.apply(imageProxy);
-        Frame frame = new Frame(1, initialFrame);
-        projectileAlgo = new ProjectileAlgo(new FrameChangeDetector(), frame);
-
     }
 
 }

@@ -49,11 +49,6 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
     @Override
     public void analyze(@NonNull ImageProxy imageProxy) {
 
-        if(!isInitialised){
-            algo.init(imageProxy);
-            isInitialised = true;
-        }
-
         Log.d(TAG, "ImageAnalysis: New frame received. Format: " + imageProxy.getFormat() +
                 ", Size: " + imageProxy.getWidth() + "x" + imageProxy.getHeight() +
                 ", Timestamp: " + imageProxy.getImageInfo().getTimestamp());
