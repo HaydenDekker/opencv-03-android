@@ -19,12 +19,9 @@ public class ReactiveProjectileAlgo implements ReactiveImageAlgo<ImageProxy, Mat
     Sinks.Many<ImageProxy> sink;
     int frameIndex = 0;
 
-    final ProjectileAlgo projectileAlgo;
+    ProjectileAlgo projectileAlgo;
 
-    ReactiveProjectileAlgo(Mat initialFrame){
-
-        Frame frame = new Frame(1, initialFrame);
-        projectileAlgo = new ProjectileAlgo(new FrameChangeDetector(), frame);
+    ReactiveProjectileAlgo(){
 
         sink = Sinks.many().multicast()
                 .directAllOrNothing();
@@ -52,7 +49,12 @@ public class ReactiveProjectileAlgo implements ReactiveImageAlgo<ImageProxy, Mat
     }
 
     @Override
-    public WindowedFPSCalculator getOutputFPS() {
-        return null;
+    public void init(ImageProxy imageProxy) {
+
+        Mat initialFrame = MainActivity.openCVConversion.apply(imageProxy);
+        Frame frame = new Frame(1, initialFrame);
+        projectileAlgo = new ProjectileAlgo(new FrameChangeDetector(), frame);
+
     }
+
 }

@@ -12,6 +12,6 @@ public interface ReactiveImageAlgo<T,K> {
 
     public Flux<K> getOutputFlux();
 
-    public WindowedFPSCalculator getOutputFPS();
+    public void init(T t);
 
 }

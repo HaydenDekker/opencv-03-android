@@ -25,7 +25,6 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
      */
     static WindowedFPSCalculator inputFPS = new WindowedFPSCalculator(1000.0f);
 
-
     public ImageAnalyzer(ReactiveImageAlgo<ImageProxy, Mat> algo){
 
         this.algo = algo;
@@ -34,7 +33,7 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
                 .subscribe(c->{
 
                     double inputFPS = ImageAnalyzer.inputFPS.calculateFPS();
-                    double achievedFps = algo.getOutputFPS().calculateFPS();
+                    double achievedFps = 0;
 
                     Log.i(TAG, "Input FPS: " + inputFPS + ", Achieved FPS: " + achievedFps);
                 });
@@ -44,10 +43,16 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
     public Mat latestMatImage = null;
     public AtomicInteger processedFrameCount = new AtomicInteger(0);
 
+    boolean isInitialised = false;
 
     @SuppressLint("UnsafeOptInUsageError") // For ImageProxy.getImage()
     @Override
     public void analyze(@NonNull ImageProxy imageProxy) {
+
+        if(!isInitialised){
+            algo.init(imageProxy);
+            isInitialised = true;
+        }
 
         Log.d(TAG, "ImageAnalysis: New frame received. Format: " + imageProxy.getFormat() +
                 ", Size: " + imageProxy.getWidth() + "x" + imageProxy.getHeight() +

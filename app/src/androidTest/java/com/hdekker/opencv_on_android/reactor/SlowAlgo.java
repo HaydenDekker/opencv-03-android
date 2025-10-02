@@ -81,7 +81,9 @@ public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
     }
 
     @Override
-    public WindowedFPSCalculator getOutputFPS() {
-        return outputFPS;
+    public void init(T t) {
+
     }
+
+
 }

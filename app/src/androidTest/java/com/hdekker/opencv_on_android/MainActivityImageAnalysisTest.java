@@ -113,8 +113,7 @@ public class MainActivityImageAnalysisTest {
     @Test
     public void runWithProjectileAlgo_ExpectConstantFramesProcessed(){
 
-        Mat initFrame = new Mat(1440, 1440, CvType.CV_8UC4);
-        ReactiveProjectileAlgo rpa = new ReactiveProjectileAlgo(initFrame);
+        ReactiveProjectileAlgo rpa = new ReactiveProjectileAlgo();
         ImageAnalyzer ria = new ImageAnalyzer(rpa);
 
         scenario.onActivity(act -> {
