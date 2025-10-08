@@ -5,6 +5,7 @@ cameraViewVersion = "1.3.1"
 cameraxVersion = "1.3.1"
 coreKtx = "1.6.1"
 jacksonDatabind = "2.17.2"
+jacksonModuleParameterNames = "2.17.2"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
@@ -32,6 +33,8 @@ androidx-camera-video = { module = "androidx.camera:camera-video", version.ref =
 androidx-camera-view-v131 = { module = "androidx.camera:camera-view", version.ref = "cameraViewVersion" }
 core-ktx = { module = "androidx.test:core-ktx", version.ref = "coreKtx" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jacksonDatabind" }
+jackson-module-android-record = { module = "com.fasterxml.jackson.module:jackson-module-android-record", version.ref = "jacksonModuleParameterNames" }
+jackson-module-parameter-names = { module = "com.fasterxml.jackson.module:jackson-module-parameter-names", version.ref = "jacksonModuleParameterNames" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }

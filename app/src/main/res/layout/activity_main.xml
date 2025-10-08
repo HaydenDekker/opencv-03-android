@@ -21,4 +21,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Our custom overlay view stacked on top of the PreviewView -->
+    <com.hdekker.opencv_on_android.DrawingOverlay
+        android:id="@+id/drawing_overlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="@id/previewView"
+        app:layout_constraintEnd_toEndOf="@id/previewView"
+        app:layout_constraintStart_toStartOf="@id/previewView"
+        app:layout_constraintTop_toTopOf="@id/previewView" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

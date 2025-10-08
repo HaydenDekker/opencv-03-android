@@ -4,16 +4,15 @@ import android.util.Log;
 
 import androidx.camera.core.ImageProxy;
 
+import com.hdekker.opencv_02_ball_detection.config.dev.algo.AlgoResult;
 import com.hdekker.opencv_02_ball_detection.config.dev.algo.ProjectileAlgo;
-import com.hdekker.opencv_02_ball_detection.detect.FrameChangeDetector;
 import com.hdekker.opencv_02_ball_detection.domain.Frame;
-
-import org.opencv.core.Mat;
+import com.hdekker.opencv_02_ball_detection.domain.ProjectileAlgoResult;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
-public class ReactiveProjectileAlgo implements ReactiveImageAlgo<ImageProxy, Mat> {
+public class ReactiveProjectileAlgo implements ReactiveImageAlgo<ImageProxy, AlgoResult<ProjectileAlgoResult>> {
 
     private static final String TAG = "ReactiveProjectileAlgo";
     Sinks.Many<ImageProxy> sink;
@@ -45,9 +44,8 @@ public class ReactiveProjectileAlgo implements ReactiveImageAlgo<ImageProxy, Mat
     }
 
     @Override
-    public Flux<Mat> getOutputFlux() {
-        return projectileAlgo.resultProducer()
-                .map(ar->ar.result().frame().frame());
+    public Flux<AlgoResult<ProjectileAlgoResult>> getOutputFlux() {
+        return projectileAlgo.resultProducer();
     }
 
 }

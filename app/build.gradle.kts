@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId = "com.hdekker.opencv_on_android"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -44,6 +44,9 @@ dependencies {
     implementation(libs.slf4j.android) // Or the latest version
     implementation(libs.slf4j.api) // Or the latest version
     implementation(libs.jackson.databind)// Check for the latest version
+    // In app/build.gradle.kts dependencies block
+    implementation(libs.jackson.module.parameter.names) // Use the latest Jackson version
+    implementation(libs.jackson.module.android.record)
     implementation(libs.opencv.v490)
     implementation(libs.reactor.core.v360) // Check for the latest version
 

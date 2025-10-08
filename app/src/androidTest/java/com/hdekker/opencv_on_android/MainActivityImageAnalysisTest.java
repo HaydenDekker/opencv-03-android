@@ -11,6 +11,8 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.GrantPermissionRule;
 
+import com.hdekker.opencv_02_ball_detection.config.dev.algo.AlgoResult;
+import com.hdekker.opencv_02_ball_detection.domain.ProjectileAlgoResult;
 import com.hdekker.opencv_on_android.reactor.SlowAlgo;
 
 import org.hamcrest.Matchers;
@@ -114,14 +116,14 @@ public class MainActivityImageAnalysisTest {
     public void runWithProjectileAlgo_ExpectConstantFramesProcessed(){
 
         ReactiveProjectileAlgo rpa = new ReactiveProjectileAlgo();
-        ImageAnalyzer ria = new ImageAnalyzer(rpa);
+        ImageAnalyzer<AlgoResult<ProjectileAlgoResult>> ria = new ImageAnalyzer<>(rpa);
 
         scenario.onActivity(act -> {
             act.setImageAnalyzer(ria);
         });
 
-        List<Mat> list = rpa.getOutputFlux()
-                .take(Duration.ofSeconds(10))
+        List<AlgoResult<ProjectileAlgoResult>> list = rpa.getOutputFlux()
+                .take(30)
                 .collectList()
                 .block();
 
@@ -130,8 +132,15 @@ public class MainActivityImageAnalysisTest {
         assertThat(
                 "A handful of frame should have been emitted by the algo in the running time.",
                 list.size(),
-                Matchers.greaterThan(20)
+                Matchers.equalTo(30)
         );
+
+        int resultsRendered = 0;
+
+        assertThat(
+                "All projectile results should be passed to be rendered at all times during the app operation.",
+                resultsRendered,
+                Matchers.equalTo(20));
 
     }
 

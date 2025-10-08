@@ -5,14 +5,11 @@ import android.util.Log;
 import com.hdekker.opencv_on_android.ReactiveImageAlgo;
 import com.hdekker.opencv_on_android.WindowedFPSCalculator;
 
-import org.opencv.core.Mat;
-
 import java.util.function.Function;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
-import reactor.util.concurrent.Queues;
 
 public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
 
@@ -40,11 +37,7 @@ public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
         sink.asFlux()
                 .doFinally(signalType -> Log.i("SlowAlgo", "Stream finished with signal: " + signalType))
                 //.doOnNext(m-> Log.i(SLOW_ALGO, "Image received background task."))
-                .subscribe(m->{
-                    imageCount++;
-                }, (err) -> {
-                    Log.e(SLOW_ALGO, "Error in sink");
-                });
+                .subscribe(m-> imageCount++, (err) -> Log.e(SLOW_ALGO, "Error in sink"));
 
     }
     @Override
@@ -69,10 +62,7 @@ public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
                 })
                 .doOnCancel(()-> Log.i(SLOW_ALGO, "task cancelled."))
                 .sequential()
-                .doOnNext(m -> {
-                    outputFPS.recordFrameTimestamp(System.nanoTime());
-
-                })
+                .doOnNext(m -> outputFPS.recordFrameTimestamp(System.nanoTime()))
                 .doFinally(signalType -> {
                     // This will be called when the stream terminates (onComplete, onError, or Cancel)
                     Log.i(SLOW_ALGO, "Stream finished with signal: " + signalType);

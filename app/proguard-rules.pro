@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# proguard
+    # Keep the constructor parameter names for all classes in the domain package.
+    # This is essential for Jackson's ParameterNamesModule to work with Java records
+    # and Kotlin data classes after code shrinking by R8.
+    -keepclassmembers,allowobfuscation class com.hdekker.opencv_02_ball_detection.** {
+      <init>(...);
+    }

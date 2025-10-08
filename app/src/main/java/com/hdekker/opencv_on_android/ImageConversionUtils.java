@@ -1,5 +1,7 @@
 package com.hdekker.opencv_on_android;
 
+import android.util.Log;
+
 import androidx.camera.core.ImageProxy;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -8,7 +10,11 @@ import java.nio.ByteBuffer;
 
 public class ImageConversionUtils {
 
+    public static final String TAG = "ImageConversionUtils";
     public static Mat imageProxyToMat(ImageProxy image) {
+
+        Log.i(TAG, "rotation:" + image.getImageInfo().getRotationDegrees());
+
         if (image.getFormat() != android.graphics.ImageFormat.YUV_420_888) {
             throw new IllegalArgumentException("Invalid image format, YUV_420_888 expected, got " + image.getFormat());
         }
