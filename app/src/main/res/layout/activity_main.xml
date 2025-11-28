@@ -31,4 +31,40 @@
         app:layout_constraintStart_toStartOf="@id/previewView"
         app:layout_constraintTop_toTopOf="@id/previewView" />
 
+    <LinearLayout
+        android:id="@+id/metrics_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#80000000"
+        android:padding="8dp"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Include the first metric item -->
+        <include
+            android:id="@+id/fps_metric"
+            layout="@layout/metric_display_item" />
+
+        <include
+            android:id="@+id/point_metric"
+            layout="@layout/metric_display_item" />
+
+        <include
+            android:id="@+id/contour_metric"
+            layout="@layout/metric_display_item" />
+
+        <include
+            android:id="@+id/deflection_metric"
+            layout="@layout/metric_display_item" />
+
+        <include
+            android:id="@+id/intersection_metric"
+            layout="@layout/metric_display_item" />
+
+
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

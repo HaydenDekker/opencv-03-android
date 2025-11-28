@@ -6,6 +6,9 @@ import android.content.pm.PackageManager;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -36,11 +39,15 @@ import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import reactor.core.publisher.Flux;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -67,6 +74,10 @@ public class MainActivity extends AppCompatActivity {
 
     private FileLogger fileLogger;
 
+    private TextView fpsValueText;
+    private TextView pointMetricText;
+    final private AtomicInteger pointsMaxWaterMark = new AtomicInteger(0);
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,6 +86,15 @@ public class MainActivity extends AppCompatActivity {
 
         previewView = findViewById(R.id.previewView);
         drawingOverlay = findViewById(R.id.drawing_overlay);
+
+        View fpsMetricLayout = findViewById(R.id.fps_metric);
+        fpsValueText = fpsMetricLayout.findViewById(R.id.metric_value);
+        ImageView fpsIcon = fpsMetricLayout.findViewById(R.id.metric_icon);
+        fpsIcon.setImageResource(R.drawable.baseline_shutter_speed_24);
+
+        View pointMetricTextView = findViewById(R.id.point_metric);
+        pointMetricText = pointMetricTextView.findViewById(R.id.metric_value);
+
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -90,6 +110,18 @@ public class MainActivity extends AppCompatActivity {
         ReactiveProjectileAlgo rpa = new ReactiveProjectileAlgo();
         ImageAnalyzer<AlgoResult<ProjectileAlgoResult>> ria = new ImageAnalyzer<>(rpa);
         setImageAnalyzer(ria);
+
+        Flux.interval(Duration.ofSeconds(2))
+                .subscribe(c->{
+                    double fps = ImageAnalyzer.inputFPS.calculateFPS();
+                    Log.i(TAG, "Input FPS: " + fps);
+                    runOnUiThread(() -> {
+                        fpsValueText.setText(String.valueOf(Double.valueOf(fps).intValue()));
+                        pointMetricText.setText(String.valueOf(pointsMaxWaterMark.get()));
+                        pointsMaxWaterMark.set(0);
+                    });
+                });
+
         fileLogger = new FileLogger(getApplicationContext());
 
         ObjectMapper om = new ObjectMapper();
@@ -109,7 +141,6 @@ public class MainActivity extends AppCompatActivity {
             }
 
             fileLogger.append(algoLog);
-            //Log.i(TAG, algoLog);
 
             List<PointF> points = res.result().pathIntersectionStream()
                     .map(pi-> {
@@ -147,6 +178,8 @@ public class MainActivity extends AppCompatActivity {
             Log.i(TAG, "writing points: " + points.size() + " from " + res.result().frameMatchChangeResult().contourRegionOfInterest().size() + " contours. "
               + " deflections: " + res.result().deflections().size() +
                     ". path intersections: " + res.result().intersections().size());
+
+            pointsMaxWaterMark.getAndUpdate(n-> Math.max(n, res.result().frameMatchChangeResult().contourRegionOfInterest().size()));
 
             drawingOverlay.setCircles(transformToViewCoordinates(points));
 

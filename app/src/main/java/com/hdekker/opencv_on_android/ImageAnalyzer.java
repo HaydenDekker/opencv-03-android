@@ -78,7 +78,6 @@ public class ImageAnalyzer<T> implements ImageAnalysis.Analyzer {
         });
 
         long millis = System.currentTimeMillis() - startTime;
-        //Log.i(TAG, "Conversion took " + millis + " millis.");
     }
 
     public void subscribeToEvents(Consumer<T> eventConsumer) {
