@@ -51,4 +51,31 @@ public class DrawingOverlay extends View {
             }
         }
     }
+
+    /**
+     * Transforms points from the ImageAnalysis coordinate space to the DrawingOverlay's coordinate space.
+     */
+    public static List<PointF> transformToViewCoordinates(List<PointF> imagePoints, float viewWidth, float viewHeight) {
+        if (imagePoints == null || imagePoints.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // Get the dimensions of the image that the analyzer is processing.
+        // You must get this from your ImageAnalyzer or the use case itself.
+        // For example, if you set a target resolution of 1280x720:
+        float imageWidth = 1280; // Example, replace with actual
+        float imageHeight = 720; // Example, replace with actual
+
+        float scaleX = viewWidth / imageWidth;
+        float scaleY = viewHeight / imageHeight;
+
+        List<PointF> viewPoints = new ArrayList<>();
+        for (PointF imagePoint : imagePoints) {
+            float viewX = imagePoint.x * scaleX;
+            float viewY = imagePoint.y * scaleY;
+            viewPoints.add(new PointF(viewX, viewY));
+        }
+
+        return viewPoints;
+    }
 }

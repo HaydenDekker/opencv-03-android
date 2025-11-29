@@ -49,11 +49,11 @@
             layout="@layout/metric_display_item" />
 
         <include
-            android:id="@+id/point_metric"
+            android:id="@+id/contour_metric"
             layout="@layout/metric_display_item" />
 
         <include
-            android:id="@+id/contour_metric"
+            android:id="@+id/path_metric"
             layout="@layout/metric_display_item" />
 
         <include

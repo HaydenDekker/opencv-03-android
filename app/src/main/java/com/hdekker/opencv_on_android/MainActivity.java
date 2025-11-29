@@ -75,14 +75,11 @@ public class MainActivity extends AppCompatActivity {
     private FileLogger fileLogger;
 
     private TextView fpsValueText;
-    private TextView pointMetricText;
-    final private AtomicInteger pointsMaxWaterMark = new AtomicInteger(0);
+    private TextView contourMetricText;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_main);
+    private TextView pathMetricText;
+
+    private void initTextViewObjects(){
 
         previewView = findViewById(R.id.previewView);
         drawingOverlay = findViewById(R.id.drawing_overlay);
@@ -92,9 +89,24 @@ public class MainActivity extends AppCompatActivity {
         ImageView fpsIcon = fpsMetricLayout.findViewById(R.id.metric_icon);
         fpsIcon.setImageResource(R.drawable.baseline_shutter_speed_24);
 
-        View pointMetricTextView = findViewById(R.id.point_metric);
-        pointMetricText = pointMetricTextView.findViewById(R.id.metric_value);
+        View contourMetricTextView = findViewById(R.id.contour_metric);
+        contourMetricText = contourMetricTextView.findViewById(R.id.metric_value);
 
+        View pathMetricTextView = findViewById(R.id.path_metric);
+        pathMetricText = pathMetricTextView.findViewById(R.id.metric_value);
+
+    }
+
+    final private AtomicInteger pointsMaxWaterMark = new AtomicInteger(0);
+    final private AtomicInteger pathsMaxWaterMark = new AtomicInteger(0);
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_main);
+
+        initTextViewObjects();
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -117,8 +129,10 @@ public class MainActivity extends AppCompatActivity {
                     Log.i(TAG, "Input FPS: " + fps);
                     runOnUiThread(() -> {
                         fpsValueText.setText(String.valueOf(Double.valueOf(fps).intValue()));
-                        pointMetricText.setText(String.valueOf(pointsMaxWaterMark.get()));
+                        contourMetricText.setText(String.valueOf(pointsMaxWaterMark.get()));
                         pointsMaxWaterMark.set(0);
+                        pathMetricText.setText(String.valueOf(pathsMaxWaterMark.get()));
+                        pathsMaxWaterMark.set(0);
                     });
                 });
 
@@ -133,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
 
         ria.subscribeToEvents(res->{
 
+            // log
             String algoLog = null;
             try {
                 algoLog = om.writeValueAsString(res.result());
@@ -142,36 +157,9 @@ public class MainActivity extends AppCompatActivity {
 
             fileLogger.append(algoLog);
 
+            // metrics
             List<PointF> points = res.result().pathIntersectionStream()
-                    .map(pi-> {
-
-                        if(pi.intersectionPoints().length==0) {
-                            return null;
-                        }
-
-                        ProjectileNode latestNodeBefore = pi.res().overLappingAssessment().latestNodeBefore();
-
-                        double[] point = pi.findClosestPointsTo(latestNodeBefore.point().x, latestNodeBefore.point().y);
-
-                        MinEnclosingCircle moc = new MinEnclosingCircle(
-                                new Point(point[0], point[1]),
-                                latestNodeBefore.radius());
-
-                        PointF pf = new PointF();
-                        pf.set(Double.valueOf(moc.point().x).floatValue(),
-                                Double.valueOf(moc.point().y).floatValue());
-
-                        return pf;
-
-//                        MatOfPoint circle = ContourCircularityDetector.createCircleContour(
-//                                Double.valueOf(moc.point().x).intValue(),
-//                                Double.valueOf(moc.point().y).intValue(),
-//                                latestNodeBefore.radius(),
-//                                14);
-//
-//                        hits.add(circle);
-
-                    })
+                    .map(OpenCVTypeUtils::convert)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
@@ -179,9 +167,20 @@ public class MainActivity extends AppCompatActivity {
               + " deflections: " + res.result().deflections().size() +
                     ". path intersections: " + res.result().intersections().size());
 
-            pointsMaxWaterMark.getAndUpdate(n-> Math.max(n, res.result().frameMatchChangeResult().contourRegionOfInterest().size()));
+            int contours = res.result().frameMatchChangeResult().contourRegionOfInterest().size();
+            pointsMaxWaterMark.getAndUpdate(n-> Math.max(n,contours));
 
-            drawingOverlay.setCircles(transformToViewCoordinates(points));
+            int path = res.result().pathAnalysis().paths().size();
+            pathsMaxWaterMark.getAndUpdate(n-> Math.max(n,path));
+
+            // This is a simplified example. A full implementation requires matching aspect ratios
+            // between the image and the view. CameraX's CoordinateTransform can be complex.
+            // Let's assume a simple scaling for now.
+            float viewWidth = drawingOverlay.getWidth();
+            float viewHeight = drawingOverlay.getHeight();
+
+            // display
+            drawingOverlay.setCircles(DrawingOverlay.transformToViewCoordinates(points, viewWidth, viewHeight));
 
         });
     }
@@ -197,39 +196,6 @@ public class MainActivity extends AppCompatActivity {
                     cameraUseCaseConfig.startRecording(this);
                 });
 
-    }
-
-    /**
-     * Transforms points from the ImageAnalysis coordinate space to the DrawingOverlay's coordinate space.
-     */
-    private List<PointF> transformToViewCoordinates(List<PointF> imagePoints) {
-        if (imagePoints == null || imagePoints.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        // This is a simplified example. A full implementation requires matching aspect ratios
-        // between the image and the view. CameraX's CoordinateTransform can be complex.
-        // Let's assume a simple scaling for now.
-        float viewWidth = drawingOverlay.getWidth();
-        float viewHeight = drawingOverlay.getHeight();
-
-        // Get the dimensions of the image that the analyzer is processing.
-        // You must get this from your ImageAnalyzer or the use case itself.
-        // For example, if you set a target resolution of 1280x720:
-        float imageWidth = 1280; // Example, replace with actual
-        float imageHeight = 720; // Example, replace with actual
-
-        float scaleX = viewWidth / imageWidth;
-        float scaleY = viewHeight / imageHeight;
-
-        List<PointF> viewPoints = new ArrayList<>();
-        for (PointF imagePoint : imagePoints) {
-            float viewX = imagePoint.x * scaleX;
-            float viewY = imagePoint.y * scaleY;
-            viewPoints.add(new PointF(viewX, viewY));
-        }
-
-        return viewPoints;
     }
 
     private boolean permissionsNotGranted() {
