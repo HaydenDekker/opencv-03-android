@@ -6,9 +6,33 @@ import com.hdekker.opencv_02_ball_detection.domain.MinEnclosingCircle;
 import com.hdekker.opencv_02_ball_detection.domain.PathIntersection;
 import com.hdekker.opencv_02_ball_detection.domain.ProjectileNode;
 
+import org.opencv.core.MatOfPoint;
 import org.opencv.core.Point;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
 public class OpenCVTypeUtils {
+
+    /**
+     * Converts an OpenCV MatOfPoint into a List of Android graphics PointF objects.
+     *
+     * @param matOfPoint The OpenCV MatOfPoint to convert.
+     * @return A List of PointF objects. Returns an empty list if the input is null.
+     */
+    public static List<PointF> convert(MatOfPoint matOfPoint) {
+        if (matOfPoint == null) {
+            return new ArrayList<>();
+        }
+        // Convert the MatOfPoint to a list of OpenCV Points
+        List<Point> openCVPoints = matOfPoint.toList();
+
+        // Stream the OpenCV Points and map each one to a new Android PointF
+        return openCVPoints.stream()
+                .map(p -> new PointF((float) p.x, (float) p.y))
+                .collect(Collectors.toList());
+    }
 
     public static PointF convert(PathIntersection pi){
         if(pi.intersectionPoints().length==0) {

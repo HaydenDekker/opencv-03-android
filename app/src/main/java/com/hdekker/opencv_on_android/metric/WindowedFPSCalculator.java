@@ -1,4 +1,4 @@
-package com.hdekker.opencv_on_android;
+package com.hdekker.opencv_on_android.metric;
 
 import java.util.LinkedList;
 

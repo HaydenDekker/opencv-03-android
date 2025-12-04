@@ -6,11 +6,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
-public class ARCoreTest {
+public class ProjectileAlgoRunnerTest {
 
     @Test
-    public void givenInitalisedARCore_ExpectCanStop(){
-
+    public void canStream30fpsInPipeline(){
 
 
     }

@@ -1,12 +1,12 @@
 package com.hdekker.opencv_on_android;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -14,7 +14,6 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.ImageProxy;
 import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -26,25 +25,20 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.module.androidrecord.AndroidRecordModule;
-import com.hdekker.opencv_02_ball_detection.config.dev.algo.AlgoResult;
-import com.hdekker.opencv_02_ball_detection.domain.MinEnclosingCircle;
-import com.hdekker.opencv_02_ball_detection.domain.ProjectileAlgoResult;
-import com.hdekker.opencv_02_ball_detection.domain.ProjectileNode;
+import com.hdekker.opencv_02_ball_detection.config.dev.algo.ProjectileAlgo;
+import com.hdekker.opencv_02_ball_detection.domain.ContourROI;
 import com.hdekker.opencv_02_ball_detection.domain.serialisers.ContourDeserialiser;
 import com.hdekker.opencv_02_ball_detection.domain.serialisers.ContourSerialiser;
-import com.hdekker.opencv_02_ball_detection.domain.serialisers.ProjectileAlgoResultMapper;
+import com.hdekker.opencv_on_android.camera.ImageAnalyzerAdapter;
+import com.hdekker.opencv_on_android.projectile.ProjectilePipeline;
 
 import org.opencv.android.OpenCVLoader;
-import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
-import org.opencv.core.Point;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import reactor.core.publisher.Flux;
@@ -69,8 +63,7 @@ public class MainActivity extends AppCompatActivity {
 
     private DrawingOverlay drawingOverlay;
 
-    CameraUseCaseConfig cameraUseCaseConfig;
-    public ImageAnalyzer imageAnalyzer;
+    public IImageAnalyzerAdapter imageAnalyzer;
 
     private FileLogger fileLogger;
 
@@ -78,6 +71,9 @@ public class MainActivity extends AppCompatActivity {
     private TextView contourMetricText;
 
     private TextView pathMetricText;
+
+    final ProjectileAlgo projectileAlgo = new ProjectileAlgo();
+    final ProjectilePipeline pp = new ProjectilePipeline(projectileAlgo);
 
     private void initTextViewObjects(){
 
@@ -100,13 +96,20 @@ public class MainActivity extends AppCompatActivity {
     final private AtomicInteger pointsMaxWaterMark = new AtomicInteger(0);
     final private AtomicInteger pathsMaxWaterMark = new AtomicInteger(0);
 
+    void setAppScreenBrightnessBehaviour(){
+        // initially keep bright, could later improve based on user experience.
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
 
         initTextViewObjects();
+        setAppScreenBrightnessBehaviour();
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -119,13 +122,17 @@ public class MainActivity extends AppCompatActivity {
                     this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
         }
 
-        ReactiveProjectileAlgo rpa = new ReactiveProjectileAlgo();
-        ImageAnalyzer<AlgoResult<ProjectileAlgoResult>> ria = new ImageAnalyzer<>(rpa);
+        ImageAnalyzerAdapter ria = new ImageAnalyzerAdapter(
+                previewView,
+                this,
+                this
+        );
         setImageAnalyzer(ria);
+        ria.start(pp);
 
         Flux.interval(Duration.ofSeconds(2))
                 .subscribe(c->{
-                    double fps = ImageAnalyzer.inputFPS.calculateFPS();
+                    double fps = ProjectilePipeline.inputFPS.calculateFPS();
                     Log.i(TAG, "Input FPS: " + fps);
                     runOnUiThread(() -> {
                         fpsValueText.setText(String.valueOf(Double.valueOf(fps).intValue()));
@@ -145,10 +152,10 @@ public class MainActivity extends AppCompatActivity {
         sm.addDeserializer(MatOfPoint.class, new ContourDeserialiser());
         om.registerModule(sm);
 
-        ria.subscribeToEvents(res->{
+        pp.getFlux().subscribe(res->{
 
             // log
-            String algoLog = null;
+            String algoLog;
             try {
                 algoLog = om.writeValueAsString(res.result());
             } catch (JsonProcessingException e) {
@@ -163,7 +170,9 @@ public class MainActivity extends AppCompatActivity {
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
 
-            Log.i(TAG, "writing points: " + points.size() + " from " + res.result().frameMatchChangeResult().contourRegionOfInterest().size() + " contours. "
+            List<ContourROI> detectedContours = res.result().frameMatchChangeResult().contourRegionOfInterest();
+
+            Log.i(TAG, "writing points: " + points.size() + " from " + detectedContours.size() + " contours. "
               + " deflections: " + res.result().deflections().size() +
                     ". path intersections: " + res.result().intersections().size());
 
@@ -179,23 +188,34 @@ public class MainActivity extends AppCompatActivity {
             float viewWidth = drawingOverlay.getWidth();
             float viewHeight = drawingOverlay.getHeight();
 
+            float imageWidth = res.result().frame().frame().width();
+            float imageHeight = res.result().frame().frame().height();
+
+            Log.i(TAG, "view: " + viewWidth + "x" + viewHeight + ", image: " + imageWidth + "x" + imageHeight);
+
             // display
-            drawingOverlay.setCircles(DrawingOverlay.transformToViewCoordinates(points, viewWidth, viewHeight));
+            drawingOverlay.setCircles(DrawingOverlay.transformToViewCoordinates(
+                    points,
+                    imageWidth,
+                    imageHeight,
+                    viewWidth,
+                    viewHeight));
+
+            if(detectedContours.isEmpty()) return;
+            List<PointF> firstPath = OpenCVTypeUtils.convert(detectedContours.get(0).originalContour());
+            List<PointF> transformedPath = DrawingOverlay.transformToViewCoordinates(
+                    firstPath,
+                    imageWidth,
+                    imageHeight,
+                    viewWidth,
+                    viewHeight);
+            drawingOverlay.setPath(transformedPath);
 
         });
     }
 
-    public void setImageAnalyzer(ImageAnalyzer<?> imageAnalyzer){
+    public void setImageAnalyzer(IImageAnalyzerAdapter imageAnalyzer){
         this.imageAnalyzer = imageAnalyzer;
-        if (cameraUseCaseConfig != null) {
-            cameraUseCaseConfig.releaseCamera();
-        }
-        cameraUseCaseConfig = new CameraUseCaseConfig(this);
-        cameraUseCaseConfig.startCamera(this, this, previewView.getSurfaceProvider(), imageAnalyzer,
-                ()->{
-                    cameraUseCaseConfig.startRecording(this);
-                });
-
     }
 
     private boolean permissionsNotGranted() {
@@ -225,22 +245,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        if (cameraUseCaseConfig != null) {
-            cameraUseCaseConfig.releaseCamera();
-        }
-
     }
 
-    public static Function<ImageProxy, Mat> openCVConversion = (imageProxy) -> {
-        Mat bgrMat = null;
-        try (imageProxy) {
-            bgrMat = ImageConversionUtils.imageProxyToMat(imageProxy);
-            imageProxy.close();
-        } catch (Exception e) {
-            Log.e(TAG, "Error during ImageProxy to Mat conversion: ", e);
-        }
-        return bgrMat;
-    };
 
 
 }

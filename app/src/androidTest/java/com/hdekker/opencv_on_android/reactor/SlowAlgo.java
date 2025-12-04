@@ -3,7 +3,7 @@ package com.hdekker.opencv_on_android.reactor;
 import android.util.Log;
 
 import com.hdekker.opencv_on_android.ReactiveImageAlgo;
-import com.hdekker.opencv_on_android.WindowedFPSCalculator;
+import com.hdekker.opencv_on_android.metric.WindowedFPSCalculator;
 
 import java.util.function.Function;
 
@@ -14,17 +14,17 @@ import reactor.core.scheduler.Schedulers;
 public class SlowAlgo<T, K> implements ReactiveImageAlgo<T, K> {
 
     public static final String SLOW_ALGO = "SlowAlgo";
-    int algoSleepTimeMs;
-    Sinks.Many<T> sink;
+    final int algoSleepTimeMs;
+    final Sinks.Many<T> sink;
 
     public int imageCount = 0;
 
-    Function<T, K> mappingFunction;
+    final Function<T, K> mappingFunction;
 
     /**
      *  The rate of images processed by the algorithm.
      */
-    public WindowedFPSCalculator outputFPS = new WindowedFPSCalculator(1000.0f);
+    public final WindowedFPSCalculator outputFPS = new WindowedFPSCalculator(1000.0f);
 
     public SlowAlgo(int algoSleepTimeMs,
                     Function<T, K> mappingFunction){

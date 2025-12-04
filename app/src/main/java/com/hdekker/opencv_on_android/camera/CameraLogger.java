@@ -1,4 +1,4 @@
-package com.hdekker.opencv_on_android;
+package com.hdekker.opencv_on_android.camera;
 
 import android.graphics.ImageFormat;
 import android.hardware.camera2.CameraAccessException;
@@ -8,6 +8,8 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.util.Log;
 import android.util.Range;
 import android.util.Size;
+
+import androidx.annotation.NonNull;
 
 public class CameraLogger {
 
@@ -28,42 +30,18 @@ public class CameraLogger {
                 Integer cameraFacing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 String facingString = "Unknown";
                 if (cameraFacing != null) {
-                    switch (cameraFacing) {
-                        case CameraCharacteristics.LENS_FACING_FRONT:
-                            facingString = "Front";
-                            break;
-                        case CameraCharacteristics.LENS_FACING_BACK:
-                            facingString = "Back";
-                            break;
-                        case CameraCharacteristics.LENS_FACING_EXTERNAL:
-                            facingString = "External";
-                            break;
-                    }
+                    facingString = switch (cameraFacing) {
+                        case CameraCharacteristics.LENS_FACING_FRONT -> "Front";
+                        case CameraCharacteristics.LENS_FACING_BACK -> "Back";
+                        case CameraCharacteristics.LENS_FACING_EXTERNAL -> "External";
+                        default -> facingString;
+                    };
                 }
                 Log.d(TAG, "  Facing: " + facingString);
 
                 // Get Hardware Level
                 Integer hardwareLevel = characteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
-                String hardwareLevelString = "UNKNOWN";
-                if (hardwareLevel != null) {
-                    switch (hardwareLevel) {
-                        case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY:
-                            hardwareLevelString = "LEGACY";
-                            break;
-                        case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED:
-                            hardwareLevelString = "LIMITED";
-                            break;
-                        case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL:
-                            hardwareLevelString = "FULL";
-                            break;
-//                        case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEVEL_3:
-//                            hardwareLevelString = "LEVEL_3";
-//                            break;
-                        case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_EXTERNAL:
-                            hardwareLevelString = "EXTERNAL";
-                            break;
-                    }
-                }
+                String hardwareLevelString = getString(hardwareLevel);
                 Log.d(TAG, "  Hardware Level: " + hardwareLevelString);
 
                 // 1. Log supported output formats
@@ -141,18 +119,35 @@ public class CameraLogger {
         }
     }
 
-    private static String formatToString(int format) {
-        switch (format) {
-            case ImageFormat.YUV_420_888: return "YUV_420_888";
-            case ImageFormat.JPEG: return "JPEG";
-            case ImageFormat.RAW_SENSOR: return "RAW_SENSOR";
-            case ImageFormat.DEPTH16: return "DEPTH16";
-            case ImageFormat.DEPTH_POINT_CLOUD: return "DEPTH_POINT_CLOUD";
-            case ImageFormat.NV21: return "NV21";
-            case ImageFormat.YUY2: return "YUY2";
-            case ImageFormat.YV12: return "YV12";
-            default: return "Format_" + format;
+    @NonNull
+    private static String getString(Integer hardwareLevel) {
+        String hardwareLevelString = "UNKNOWN";
+        if (hardwareLevel != null) {
+            hardwareLevelString = switch (hardwareLevel) {
+                case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY -> "LEGACY";
+                case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED ->
+                        "LIMITED";
+                case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL -> "FULL";
+                case CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_EXTERNAL ->
+                        "EXTERNAL";
+                default -> hardwareLevelString;
+            };
         }
+        return hardwareLevelString;
+    }
+
+    private static String formatToString(int format) {
+        return switch (format) {
+            case ImageFormat.YUV_420_888 -> "YUV_420_888";
+            case ImageFormat.JPEG -> "JPEG";
+            case ImageFormat.RAW_SENSOR -> "RAW_SENSOR";
+            case ImageFormat.DEPTH16 -> "DEPTH16";
+            case ImageFormat.DEPTH_POINT_CLOUD -> "DEPTH_POINT_CLOUD";
+            case ImageFormat.NV21 -> "NV21";
+            case ImageFormat.YUY2 -> "YUY2";
+            case ImageFormat.YV12 -> "YV12";
+            default -> "Format_" + format;
+        };
     }
 
 }

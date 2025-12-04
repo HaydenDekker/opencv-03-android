@@ -68,20 +68,6 @@ public class ImageConversionUtils {
         // Handle rotation if needed (based on imageProxy.getImageInfo().getRotationDegrees())
         // This is a simplified example. You would get the actual rotation value
         // from imageProxy.getImageInfo().getRotationDegrees() and apply it.
-        /*
-        int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
-        switch (rotationDegrees) {
-            case 90:
-                Core.rotate(rgbaMat, rgbaMat, Core.ROTATE_90_CLOCKWISE);
-                break;
-            case 180:
-                Core.rotate(rgbaMat, rgbaMat, Core.ROTATE_180);
-                break;
-            case 270:
-                Core.rotate(rgbaMat, rgbaMat, Core.ROTATE_90_COUNTERCLOCKWISE);
-                break;
-        }
-        */
 
         yuvMat.release(); // Release the intermediate YUV Mat
 

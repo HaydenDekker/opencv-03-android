@@ -1,4 +1,4 @@
-package com.hdekker.opencv_on_android;
+package com.hdekker.opencv_on_android.camera;
 
 import android.Manifest;
 import android.content.ContentValues;
@@ -10,7 +10,6 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.Preview;
@@ -39,8 +38,8 @@ import java.util.concurrent.Executors;
 
 public class CameraUseCaseConfig {
 
-    static String TAG = "CameraUseCaseConfig";
-    ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
+    static final String TAG = "CameraUseCaseConfig";
+    final ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
 
     ProcessCameraProvider cameraProvider;
 
@@ -126,12 +125,12 @@ public class CameraUseCaseConfig {
 
         try {
 
-            Camera camera = cameraProvider.bindToLifecycle(
+            cameraProvider.bindToLifecycle(
                     lifecycleOwner, // LifecycleOwner
                     cameraSelector,
                     preview,
                     imageAnalysis,
-                    videoCapture); // Add your imageAnalysis use case here
+                    videoCapture);// Add your imageAnalysis use case here
 
             Log.d(TAG, "CameraX Preview and ImageAnalysis bound successfully.");
 
@@ -167,8 +166,7 @@ public class CameraUseCaseConfig {
         if (event instanceof VideoRecordEvent.Start) {
             Log.i(TAG, "Recording started.");
             Toast.makeText(context, "Recording started", Toast.LENGTH_SHORT).show();
-        } else if (event instanceof VideoRecordEvent.Finalize) {
-            VideoRecordEvent.Finalize finalizeEvent = (VideoRecordEvent.Finalize) event;
+        } else if (event instanceof VideoRecordEvent.Finalize finalizeEvent) {
             if (finalizeEvent.hasError()) {
                 Log.e(TAG, "Recording failed: " + finalizeEvent.getError());
             } else {

@@ -1,9 +1,10 @@
 package com.hdekker.opencv_on_android;
 
+import com.hdekker.opencv_on_android.metric.WindowedFPSCalculator;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
 
 public class WindowedFPSCalculatorTest {
@@ -136,7 +137,7 @@ public class WindowedFPSCalculatorTest {
             calculator.recordFrameTimestamp(t += 1_000_000); // 1ms
             calculator.recordFrameTimestamp(t += 1_000_000); // 2ms
             calculator.recordFrameTimestamp(t += 1_000_000); // 3ms
-            calculator.recordFrameTimestamp(t += 1_000_000); // 4ms
+            calculator.recordFrameTimestamp(t + 1_000_000); // 4ms
             // 5 frames, duration 4ms. FPS = (5-1) / 0.004 = 4 / 0.004 = 1000 FPS
             Assert.assertEquals(1000.0, calculator.calculateFPS(), FPS_DELTA);
 
@@ -144,7 +145,7 @@ public class WindowedFPSCalculatorTest {
             t = 500_000_000; // 0.5 seconds
             calculator.recordFrameTimestamp(t); // 6th frame
             calculator.recordFrameTimestamp(t += 1_000_000); // 7th frame
-            calculator.recordFrameTimestamp(t += 1_000_000); // 8th frame
+            calculator.recordFrameTimestamp(t + 1_000_000); // 8th frame
             // Now we have 8 frames. First is at 0ms, last is at 502ms.
             // Duration: 502ms. Frames: 8. Intervals: 7.
             // FPS = 7 / 0.502 = ~13.94
