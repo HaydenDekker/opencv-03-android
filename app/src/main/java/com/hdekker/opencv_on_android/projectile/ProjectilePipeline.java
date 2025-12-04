@@ -21,9 +21,13 @@ public class ProjectilePipeline implements ProjectileEventProducerPort, FrameCon
     public static final String TAG = "ProjectilePipeline";
     final Algorithm<ProjectileAlgoResult> algo;
 
-    public record Stat(Integer framesProcessed){}
+    public record Stat(Integer framesReceived,
+                       Integer framesReceivedFPS,
+                       Integer framesProcessed,
+                       Integer framesProcessedFPS){}
 
     final AtomicInteger framesProcessed = new AtomicInteger();
+    final AtomicInteger framesReceived = new AtomicInteger();
 
     final Sinks.Many<Frame> sink;
 
@@ -32,10 +36,11 @@ public class ProjectilePipeline implements ProjectileEventProducerPort, FrameCon
     /**
      *  The rate of images provided to the algorithm.
      */
-    public static final WindowedFPSCalculator inputFPS = new WindowedFPSCalculator(1000.0f);
-    public final WindowedFPSCalculator achievedFPS = new WindowedFPSCalculator(1000.0f);
+    private final WindowedFPSCalculator inputFPS = new WindowedFPSCalculator(1000.0f);
+    private final WindowedFPSCalculator achievedFPS = new WindowedFPSCalculator(1000.0f);
 
     public ProjectilePipeline(Algorithm<ProjectileAlgoResult> algo){
+
         this.algo = algo;
 
         sink = Sinks.many().multicast()
@@ -44,19 +49,18 @@ public class ProjectilePipeline implements ProjectileEventProducerPort, FrameCon
         Flux<Frame> frameFlux = sink.asFlux()
                 .doOnNext(ip-> inputFPS.recordFrameTimestamp(System.nanoTime()));
 
-        Flux.interval(Duration.ofSeconds(2))
-                .subscribe(c->
-                        Log.i(TAG, "Input FPS: " + inputFPS.calculateFPS() +
-                        ", Achieved FPS: " + achievedFPS.calculateFPS())
-                );
-
         projectileAlgoResultProducer = algo.process(frameFlux)
-                .doOnNext(a-> achievedFPS.recordFrameTimestamp(System.nanoTime()));
-
+                .doOnNext(a-> achievedFPS.recordFrameTimestamp(System.nanoTime()))
+                .doOnNext(r-> framesProcessed.incrementAndGet());
     }
 
     public Stat getStat(){
-        return new Stat(framesProcessed.get());
+        return new Stat(
+                framesReceived.get(),
+                (int) inputFPS.calculateFPS(),
+                framesProcessed.get(),
+                (int) achievedFPS.calculateFPS()
+                );
     }
 
     @Override
@@ -66,7 +70,7 @@ public class ProjectilePipeline implements ProjectileEventProducerPort, FrameCon
 
     @Override
     public void receive(Frame frame) {
-        framesProcessed.incrementAndGet();
+        framesReceived.incrementAndGet();
         sink.emitNext(frame,
                 (sig, err) -> false);
     }

@@ -31,6 +31,7 @@ import com.hdekker.opencv_02_ball_detection.domain.serialisers.ContourDeserialis
 import com.hdekker.opencv_02_ball_detection.domain.serialisers.ContourSerialiser;
 import com.hdekker.opencv_on_android.camera.ImageAnalyzerAdapter;
 import com.hdekker.opencv_on_android.projectile.ProjectilePipeline;
+import com.hdekker.opencv_on_android.projectile.ProjectilePipelineMonitor;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.MatOfPoint;
@@ -74,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
 
     final ProjectileAlgo projectileAlgo = new ProjectileAlgo();
     final ProjectilePipeline pp = new ProjectilePipeline(projectileAlgo);
+    final ProjectilePipelineMonitor ppm = new ProjectilePipelineMonitor(pp);
 
     private void initTextViewObjects(){
 
@@ -132,10 +134,8 @@ public class MainActivity extends AppCompatActivity {
 
         Flux.interval(Duration.ofSeconds(2))
                 .subscribe(c->{
-                    double fps = ProjectilePipeline.inputFPS.calculateFPS();
-                    Log.i(TAG, "Input FPS: " + fps);
                     runOnUiThread(() -> {
-                        fpsValueText.setText(String.valueOf(Double.valueOf(fps).intValue()));
+                        fpsValueText.setText(String.valueOf(Double.valueOf(pp.getStat().framesProcessedFPS()).intValue()));
                         contourMetricText.setText(String.valueOf(pointsMaxWaterMark.get()));
                         pointsMaxWaterMark.set(0);
                         pathMetricText.setText(String.valueOf(pathsMaxWaterMark.get()));

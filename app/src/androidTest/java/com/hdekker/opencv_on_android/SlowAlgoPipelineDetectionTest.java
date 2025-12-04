@@ -68,7 +68,7 @@ public class SlowAlgoPipelineDetectionTest {
 
         Log.d(TAG, "Image counted is " + algo.imageCount);
 
-        double inputFPS = ProjectilePipeline.inputFPS.calculateFPS();
+        double inputFPS = activity.pp.getStat().framesProcessedFPS();
         double achievedFps = algo.outputFPS.calculateFPS();
 
         Log.i(TAG, "Input FPS: " + inputFPS + ", Achieved FPS: " + achievedFps);

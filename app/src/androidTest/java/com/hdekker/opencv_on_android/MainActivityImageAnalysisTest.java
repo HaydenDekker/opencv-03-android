@@ -1,10 +1,13 @@
 package com.hdekker.opencv_on_android;
 
+import static org.hamcrest.MatcherAssert.*;
+
 import android.util.Log;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,6 +53,19 @@ public class MainActivityImageAnalysisTest {
                 .timeout(Duration.ofSeconds(10))
                 .blockFirst();
         Log.i(TAG, "Pipeline consumed " + activity.pp.getStat().framesProcessed() + " frames.");
+
+        Flux.interval(Duration.ofSeconds(1))
+                .take(Duration.ofSeconds(60))
+                .blockLast();
+
+        // input frame rate equal to output frame rate, i.e not backing up the pipeline.
+        Integer framesReceived = activity.pp.getStat().framesReceived();
+        Integer framesProcessed = activity.pp.getStat().framesProcessed();
+
+        assertThat("Frames in should be close to out.",
+                (double) framesReceived,
+                Matchers.closeTo(framesProcessed, 10));
+
 
     }
 
